@@ -42,6 +42,6 @@ If there are no closing steps, you're done.
 | Mistake | Instead |
 |---|---|
 | Reporting state from earlier turns | Step 1, every time |
-| Asking questions one per turn | One form at the end |
+| Asking questions one per turn | One `AskUserQuestion` form at the end |
 | "Handed off" with no list | One actionable `handoff add` per item, or "Nothing remains" |
 | Telling the human you sent the `[DONE]` | One line in the summary is enough |

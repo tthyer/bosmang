@@ -27,7 +27,7 @@ Run `ledger.py list --json` and `claude agents --json`. A session is running if 
 
 ## 3. Orphaned leads
 
-These are the leads the ledger shows as ended but not closed. List each with its scope, session and worktree, and ask once which to resume. Recommend all of them.
+These are the leads the ledger shows as ended but not closed. List each with its scope, session and worktree, then ask once with `AskUserQuestion`: "Resume all (Recommended)", "Let me pick" (then take the scopes in chat), or "None".
 
 - **With a `session_id`:** `cd <worktree> && claude --bg --resume <session_id> "Resumed by /bosmang:resume. Carry on with your scope."`. The session start hook marks the lead resumed.
 - **Without one, or the conversation is gone:** say so. The user can resume it by name with `claude --resume <session>`, or start a new session in the worktree with `/bosmang:lead <SCOPE>`, which takes the scope over.

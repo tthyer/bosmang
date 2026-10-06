@@ -7,7 +7,9 @@ description: Set up bosmang for this user. Asks how they track work and versions
 
 Run every script below with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/<script>"`. If that variable is empty in your shell, the ledger command in the standing orders gives you the absolute path to the same `scripts/` directory.
 
-Ask **one question at a time**, and offer a recommended answer where there is one. Before asking about a tool, check what's already installed and signed in, so the question can say what you found.
+**Ask with the `AskUserQuestion` tool, not in chat.** One call is one short form: up to four questions, each with two to four options, and the user can always type their own answer instead. Put the recommended option first, with "(Recommended)" at the end of its label, and use `multiSelect` where several answers can apply. Ask one topic per form, in this order: the basics, the tracker, version control, closing steps, the matrix. Ask follow-ups in the next form, never mixed into this one.
+
+Before a form, check what's already installed and signed in, so options say what you found ("Jira, through `acli` (signed in)"). Use plain chat only for a question with no sensible options (how the user would like to be addressed) and for showing things: the rendered orders, the conflicts, the install command.
 
 **Never write the user's config yourself.** Draft every file in a directory you can write without prompting (your scratchpad if the session lists one, otherwise one from `mktemp -d`), and in step 5 the user installs the whole draft with one command. The standing orders say what every session may do without asking, so changing them is the user's step, and permission checks rightly stop a session that widens its own authority. One command keeps it to one step, not a wall of approvals.
 
@@ -51,7 +53,7 @@ For example, "Work is tracked in Jira through `acli`; never pick a project witho
 - writing a log or journal entry, with its path and format;
 - notifying someone.
 
-For each step the user wants, ask whether a session may do it **without asking**, and set the matching authority-matrix row to agree. A closing step and the matrix must never contradict each other.
+Ask which steps they want (`multiSelect`), then, in the next form, which of those a session may do **without asking** (`multiSelect` again). For each, and set the matching authority-matrix row to agree. A closing step and the matrix must never contradict each other.
 
 Write each command a session may run without asking as **one plain command**, never chained with `&&` or `;` (for example `git -C <repo> commit …` and `git -C <repo> push` as separate lines). Step 6 turns these into permission rules, and a rule matches one command.
 
@@ -103,7 +105,7 @@ List each finding with its file and line, and propose one of: delete it, move it
 
 Sessions started before this run have old rules in context and no standing orders, so init closes them down before the coordinator starts. Nothing a session knows may be lost on the way.
 
-1. **List them.** Run `claude agents --json`, and leave out this session (its `sessionId` is `$CLAUDE_CODE_SESSION_ID`). Show each one's `name`, `kind` (interactive or background), `cwd` and `status`, and ask which to close down. Recommend all of them, including any old coordinator.
+1. **List them.** Run `claude agents --json`, and leave out this session (its `sessionId` is `$CLAUDE_CODE_SESSION_ID`). Show each one's `name`, `kind` (interactive or background), `cwd` and `status` as a table, then ask with `AskUserQuestion` which to close down: "All of them (Recommended)", including any old coordinator, or "Let me pick", and then take the names in chat, since a form holds at most four options.
 2. **Save their state.** Send each chosen session one message with `SendMessage`, giving the ledger script's absolute path, since an old session may not have bosmang loaded:
    - record every open handoff with `ledger.py handoff add`, and the scope it owns, if any, with `ledger.py lead open`;
    - then reply with what it recorded, and stop work.
