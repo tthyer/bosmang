@@ -1,6 +1,6 @@
 ---
 name: init
-description: Set up bosmang for this user. Asks how they track work and versions, who they are and what to call the coordinator. Writes ~/.config/bosmang/config.json, short local rules, and a procedures file (tracker, version control, closing steps), forks the authority matrix, validates everything, and finds older rules and skills that would conflict. Use when the user says "set up bosmang", "bosmang init", "/bosmang:init", "configure bosmang", or changes their tracker, tools or coordinator. Re-runnable, and it starts from the current config.
+description: Set up bosmang for this user. Asks how they track work and versions, who they are and what to call the coordinator. Writes ~/.config/bosmang/config.json, short local rules, and a procedures file (tracker, version control, closing steps), forks the authority matrix, validates everything, finds older rules and skills that would conflict, then closes down the running sessions and starts the coordinator. Use when the user says "set up bosmang", "bosmang init", "/bosmang:init", "configure bosmang", or changes their tracker, tools or coordinator. Re-runnable, and it starts from the current config.
 ---
 
 # init
@@ -16,7 +16,7 @@ Run `charter.py --check`. If a config exists, show it and the local-rules file i
 ## 2. The basics
 
 1. **"How would you like to be addressed?"** Ask this first, and in these words. The answer becomes `owner`, the name every session uses for the human in the standing orders and in reports. Don't propose a name taken from git or the OS account; a username isn't how someone wants to be addressed. Then ask whether sessions should refer to them with particular pronouns. If they give some, write one line into the local rules, such as "Refer to Ada as she/her." If not, sessions use the name, or "they".
-2. **Coordinator name:** a session name to use with `-n`. It must not match a running session that isn't the coordinator, so check `ListAgents`.
+2. **Coordinator name:** a session name to use with `-n`. It must not match a running session that isn't the coordinator, so check `ListAgents`. Then ask which directory it should run in (recommend the current one). Its project memory belongs to that directory, so pick one the user won't move.
 3. **Ledger location:** default `~/.local/state/bosmang`. Suggest a directory in a git repo if the user wants history and backup, since the ledger is append-only JSONL and diffs cleanly.
 
 ## 3. How they work
@@ -77,10 +77,28 @@ Look for anything that:
 
 List each finding with its file and line, and propose one of: delete it, move it into the local rules or the procedures (a skill's closing ritual usually becomes Closing steps), or leave it and change the matrix to match. Change nothing until the user says. If open handoffs live only in a running session's context, have that session record them with `ledger.py handoff add` before anything is restarted or retired.
 
-## 7. Tell them how to start
+## 7. Close down the old crew
 
-- **Coordinator:** a fresh session, `claude --agent bosmang:coordinator -n <coordinator name>`. `--agent` applies only when a session is created; resuming an existing session with it does not change its agent.
-- **Leads:** `/bosmang:lead <SCOPE>`. **Closing:** `/bosmang:close`.
-- **Already running sessions:** they pick up the orders when they restart or run `/clear`.
+Sessions started before this run have old rules in context and no standing orders, so init closes them down before the coordinator starts. Nothing a session knows may be lost on the way.
+
+1. **List them.** Run `claude agents --json`, and leave out this session (its `sessionId` is `$CLAUDE_CODE_SESSION_ID`). Show each one's `name`, `kind` (interactive or background), `cwd` and `status`, and ask which to close down. Recommend all of them, including any old coordinator.
+2. **Save their state.** Send each chosen session one message with `SendMessage`, giving the ledger script's absolute path, since an old session may not have bosmang loaded:
+   - record every open handoff with `ledger.py handoff add`, and the scope it owns, if any, with `ledger.py lead open`;
+   - then reply with what it recorded, and stop work.
+
+   Wait for the replies, then run `ledger.py list` to confirm. If a session hasn't replied, say which, and ask the user whether to go on without it.
+3. **Stop them.** Show the user the final list, and ask once before stopping any of them.
+   - Background: `claude stop <id>`. The conversation is kept.
+   - Interactive: these can't be stopped from here. Ask the user to `/exit` each one, and wait until `claude agents --json` no longer lists it. Never kill a process.
+   - Older sessions have no SessionEnd hook, so mark each one's lead as ended yourself: pipe `{"session_id": "<sessionId>", "cwd": "<cwd>", "reason": "other"}` into `ledger.py session-end-hook`. The ledger then shows its scope as orphaned rather than live.
+
+## 8. Start the coordinator
+
+From the directory chosen in step 2, run `claude --bg --agent bosmang:coordinator -n <coordinator name> "Run the ledger list and report what is open."`. `--agent` applies only when a session is created, which is why the coordinator is always a new session. If it refuses with "Workspace not trusted", ask the user to run `claude` in that directory once and accept the prompt, then try again.
+
+Tell the user:
+- **Coordinator:** `claude attach <coordinator name>` opens it.
+- **Restarting the rest:** a stopped session picks up the orders when it resumes: `claude --resume <name>`, or `claude --bg --resume <sessionId>` for a background one. A session that held a scope takes it back when it resumes; the ledger marks it resumed. Work that's better begun fresh starts a new session with `/bosmang:lead <SCOPE>`.
+- **Closing:** `/bosmang:close`.
 
 Finish by running `ledger.py list`, so the user sees the ledger's starting state.
