@@ -5,7 +5,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/charter.py\""
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/charter.py\" --part orders"
+          },
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/charter.py\" --part local"
           },
           {
             "type": "command",

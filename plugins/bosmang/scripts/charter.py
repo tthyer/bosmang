@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """SessionStart hook: render the standing orders and hand them to Claude Code as context.
 
-Runs on every session start, including after /clear and compaction, which is the point:
-the orders are re-read rather than remembered.
+Runs on every session start, including after /clear and compaction, which is the point: the orders are re-read rather than remembered.
 
 Config is JSON at $BOSMANG_CONFIG, else ~/.config/bosmang/config.json. Every key is optional:
 
@@ -12,7 +11,13 @@ Config is JSON at $BOSMANG_CONFIG, else ~/.config/bosmang/config.json. Every key
   authority_matrix  path to a markdown table replacing the bundled one
   append            paths to markdown files appended after the orders, for local rules
 
---print writes the rendered orders as plain text instead of hook JSON.
+Claude Code shows a hook's additionalContext only up to 10,000 characters; anything
+longer reaches the session as a 2KB preview and a file path, which a session can miss
+entirely. So the orders are injected in parts, each by its own hook call (--part orders,
+--part local), and a part that is still too long is replaced by a pointer to read it in
+full rather than silently previewed.
+
+--print writes the rendered orders as plain text instead of hook JSON (one --part, or all).
 --check reports where the config was read from and every problem with it, and exits 1 if any.
 """
 
@@ -46,6 +51,12 @@ def problems(config):
     for key in ("owner", "coordinator"):
         if key in config and not (isinstance(config[key], str) and config[key].strip()):
             found.append(f"{key} must be a non-empty string")
+    try:
+        for part, text in render_parts(config).items():
+            if len(text) >= HOOK_LIMIT:
+                found.append(f"the {part} part is {len(text):,} characters, over the {HOOK_LIMIT:,} hook limit; shorten it")
+    except OSError:
+        pass  # a missing file is reported below
     paths = [("authority_matrix", config["authority_matrix"])] if config.get("authority_matrix") else []
     paths += [("append", p) for p in config.get("append", [])]
     for key, p in paths:
@@ -69,6 +80,9 @@ def check():
         return 1
     print(f"config: {path}" + (f" -> {path.resolve()}" if path.is_symlink() else ""))
     found = problems(config)
+    if not [p for p in found if "no such file" in p]:
+        for part, text in render_parts(config).items():
+            print(f"  {part}: {len(text):,} of {HOOK_LIMIT:,} characters")
     for p in found:
         print(f"  problem: {p}")
     if not found:
@@ -80,7 +94,15 @@ def read(path):
     return Path(path).expanduser().read_text().strip()
 
 
+HOOK_LIMIT = 10_000  # measured on 2.1.292: 9,900 characters shown whole, 10,100 previewed
+PARTS = ("orders", "local")
+
+
 def render(config):
+    return "\n\n".join(text for text in render_parts(config).values() if text) + "\n"
+
+
+def render_parts(config):
     matrix = config.get("authority_matrix") or PLUGIN_ROOT / "authority-matrix.md"
     ledger = PLUGIN_ROOT / "scripts" / "ledger.py"
     text = Template((PLUGIN_ROOT / "charter.md").read_text()).safe_substitute(
@@ -89,18 +111,33 @@ def render(config):
         matrix=read(matrix),
         ledger=f"python3 {shlex.quote(str(ledger))}",
     )
-    parts = [text.strip()] + [read(p) for p in config.get("append", [])]
-    return "\n\n".join(parts) + "\n"
+    return {"orders": text.strip(), "local": "\n\n".join(read(p) for p in config.get("append", []))}
+
+
+def hook_text(part, text):
+    if len(text) < HOOK_LIMIT:
+        return text
+    command = f"python3 {shlex.quote(str(Path(__file__).resolve()))} --print --part {part}"
+    return (
+        f"Part of your bosmang standing orders ({part}, {len(text):,} characters) is over Claude Code's "
+        f"{HOOK_LIMIT:,}-character limit for hook context, so it is not shown here. Read it in full now, "
+        f"before doing anything else: `{command}`"
+    )
 
 
 def main():
     if "--check" in sys.argv:
         sys.exit(check())
-    text = render(load_config())
+    part = sys.argv[sys.argv.index("--part") + 1] if "--part" in sys.argv else None
+    if part is not None and part not in PARTS:
+        sys.exit(f"--part must be one of {', '.join(PARTS)}")
+    parts = render_parts(load_config())
     if "--print" in sys.argv:
-        sys.stdout.write(text)
+        sys.stdout.write((parts[part] if part else render(load_config())).rstrip() + "\n")
         return
-    json.dump({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text}}, sys.stdout)
+    text = hook_text(part or "orders", parts[part or "orders"])
+    if text:
+        json.dump({"hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": text}}, sys.stdout)
 
 
 if __name__ == "__main__":

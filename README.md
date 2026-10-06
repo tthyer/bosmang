@@ -8,7 +8,7 @@ When you run many Claude Code sessions at once, the hard part is not the messagi
 - **Project leads** each own one scope until you close it, and make every execution decision inside it.
 - **Teammates** are authorised for the step they were spawned to do.
 - **An authority matrix** says, row by row, which role may do what without asking you.
-- **Typed reports** (`[DONE]` `[STATE]` `[COLLISION]` `[CORRECTION]` `[NEEDS-HUMAN]`) let the coordinator decide mechanically what reaches you. `[NEEDS-HUMAN]` must cite the matrix row that makes it your call.
+- **Typed messages** (`[DONE]` `[STATE]` `[COLLISION]` `[CORRECTION]` `[REQUEST]` `[NEEDS-HUMAN]`) let the coordinator decide mechanically what reaches you, and keep the coordinator in charge of meta-coordination: facts go straight to the session they affect, while needs and disputes between scopes go to the coordinator, which routes and settles them, so you never carry messages between sessions. `[NEEDS-HUMAN]` must cite the matrix row that makes it your call.
 - **An append-only ledger** of leads and handoffs outlives any session's context.
 
 *Bosmang* is Belter Creole for "boss", from *The Expanse*. In this crew, the bosmang is you.

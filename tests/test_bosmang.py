@@ -168,6 +168,8 @@ class CharterTest(unittest.TestCase):
         text = charter.render({})
         self.assertIn("working for the human", text)
         self.assertIn("| Action |", text)
+        self.assertIn("[REQUEST]", text)
+        self.assertIn("## Talking to other sessions", text)
         self.assertNotIn("$", text.replace("$$", ""))
 
     def test_config_fills_names_and_appends_local_rules(self):
@@ -199,6 +201,27 @@ class CharterTest(unittest.TestCase):
             self.assertEqual(run().returncode, 0)
         finally:
             os.unlink(cfg.name)
+
+    def test_an_oversized_part_becomes_a_pointer_not_a_preview(self):
+        self.assertEqual(charter.hook_text("local", "short"), "short")
+        text = charter.hook_text("local", "x" * charter.HOOK_LIMIT)
+        self.assertLess(len(text), 1000)
+        self.assertIn("--print --part local", text)
+        self.assertEqual(charter.hook_text("local", ""), "")
+
+    def test_problems_flags_an_oversized_part(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as big:
+            big.write("x" * charter.HOOK_LIMIT)
+        try:
+            found = charter.problems({"append": [big.name]})
+        finally:
+            os.unlink(big.name)
+        self.assertTrue(any("local part" in p for p in found), found)
+
+    def test_empty_local_part_emits_nothing(self):
+        env = dict(os.environ, BOSMANG_CONFIG="/nonexistent/config.json")
+        out = subprocess.run([sys.executable, str(SCRIPTS / "charter.py"), "--part", "local"], capture_output=True, text=True, env=env, check=True)
+        self.assertEqual(out.stdout, "")
 
     def test_hook_output_is_session_start_json(self):
         env = dict(os.environ, BOSMANG_CONFIG="/nonexistent/config.json")
