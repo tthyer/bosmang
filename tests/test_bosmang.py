@@ -169,7 +169,7 @@ class CharterTest(unittest.TestCase):
         self.assertIn("working for the human", text)
         self.assertIn("| Action |", text)
         self.assertIn("[REQUEST]", text)
-        self.assertIn("## Talking to other sessions", text)
+        self.assertIn("## Messages", text)
         self.assertNotIn("$", text.replace("$$", ""))
 
     def test_config_fills_names_and_appends_local_rules(self):
@@ -217,6 +217,23 @@ class CharterTest(unittest.TestCase):
         finally:
             os.unlink(big.name)
         self.assertTrue(any("local part" in p for p in found), found)
+
+    def test_procedures_are_printed_on_demand_and_never_injected(self):
+        with tempfile.TemporaryDirectory() as d:
+            proc = Path(d, "procedures.md"); proc.write_text("## Closing steps\nPROCEDURE-MARKER")
+            cfg = Path(d, "config.json"); cfg.write_text(json.dumps({"procedures": [str(proc)]}))
+            env = dict(os.environ, BOSMANG_CONFIG=str(cfg))
+            run = lambda *a: subprocess.run([sys.executable, str(SCRIPTS / "charter.py"), *a], capture_output=True, text=True, env=env, check=True).stdout
+            self.assertIn("PROCEDURE-MARKER", run("--procedures"))
+            self.assertNotIn("PROCEDURE-MARKER", run("--part", "orders") + run("--part", "local") + run("--print"))
+
+    def test_the_owner_never_starts_a_sentence(self):
+        # The default owner is "the human", which reads wrong at the start of a sentence.
+        import re
+        self.assertIsNone(re.search(r"(^|[.!?]\s+|^- |\| )the human", charter.render({}), re.M))
+
+    def test_default_orders_fit_the_injected_budget(self):
+        self.assertLess(len(charter.render({})), charter.INJECTED_BUDGET)
 
     def test_empty_local_part_emits_nothing(self):
         env = dict(os.environ, BOSMANG_CONFIG="/nonexistent/config.json")

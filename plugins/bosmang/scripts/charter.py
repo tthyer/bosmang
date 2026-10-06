@@ -9,7 +9,11 @@ Config is JSON at $BOSMANG_CONFIG, else ~/.config/bosmang/config.json. Every key
   coordinator       the coordinator session's name          (default "coordinator")
   ledger_dir        where leads.jsonl and handoffs.jsonl go  (default ~/.local/state/bosmang)
   authority_matrix  path to a markdown table replacing the bundled one
-  append            paths to markdown files appended after the orders, for local rules
+  append            paths to markdown injected after the orders: local rules that change
+                    how a session decides. Keep them short; they cost context in every session.
+  procedures        paths to markdown NOT injected: exact commands, templates and routines
+                    (tracker, version control, closing steps). Skills read them with
+                    --procedures when they run.
 
 Claude Code shows a hook's additionalContext only up to 10,000 characters; anything
 longer reaches the session as a 2KB preview and a file path, which a session can miss
@@ -18,6 +22,7 @@ entirely. So the orders are injected in parts, each by its own hook call (--part
 full rather than silently previewed.
 
 --print writes the rendered orders as plain text instead of hook JSON (one --part, or all).
+--procedures prints the procedures files, for skills that need them.
 --check reports where the config was read from and every problem with it, and exits 1 if any.
 """
 
@@ -32,7 +37,7 @@ PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = Path.home() / ".config" / "bosmang" / "config.json"
 
 
-KEYS = {"owner", "coordinator", "ledger_dir", "authority_matrix", "append"}
+KEYS = {"owner", "coordinator", "ledger_dir", "authority_matrix", "append", "procedures"}
 
 
 def config_path():
@@ -59,6 +64,7 @@ def problems(config):
         pass  # a missing file is reported below
     paths = [("authority_matrix", config["authority_matrix"])] if config.get("authority_matrix") else []
     paths += [("append", p) for p in config.get("append", [])]
+    paths += [("procedures", p) for p in config.get("procedures", [])]
     for key, p in paths:
         if not Path(p).expanduser().is_file():
             found.append(f"{key}: no such file {p}")
@@ -81,8 +87,13 @@ def check():
     print(f"config: {path}" + (f" -> {path.resolve()}" if path.is_symlink() else ""))
     found = problems(config)
     if not [p for p in found if "no such file" in p]:
-        for part, text in render_parts(config).items():
+        parts = render_parts(config)
+        for part, text in parts.items():
             print(f"  {part}: {len(text):,} of {HOOK_LIMIT:,} characters")
+        injected = sum(len(t) for t in parts.values())
+        if injected > INJECTED_BUDGET:
+            print(f"  note: {injected:,} characters injected into every session, over the {INJECTED_BUDGET:,} budget."
+                  " Move commands, templates and routines from the local rules into procedures.")
     for p in found:
         print(f"  problem: {p}")
     if not found:
@@ -96,6 +107,9 @@ def read(path):
 
 HOOK_LIMIT = 10_000  # measured on 2.1.292: 9,900 characters shown whole, 10,100 previewed
 PARTS = ("orders", "local")
+# Injected text is paid for in every session's context, so it carries only what changes
+# how a session decides. Past this, --check suggests moving procedure into procedures.
+INJECTED_BUDGET = 7_000
 
 
 def render(config):
@@ -128,6 +142,10 @@ def hook_text(part, text):
 def main():
     if "--check" in sys.argv:
         sys.exit(check())
+    if "--procedures" in sys.argv:
+        config = load_config()
+        sys.stdout.write("\n\n".join(read(p) for p in config.get("procedures", [])) + "\n")
+        return
     part = sys.argv[sys.argv.index("--part") + 1] if "--part" in sys.argv else None
     if part is not None and part not in PARTS:
         sys.exit(f"--part must be one of {', '.join(PARTS)}")

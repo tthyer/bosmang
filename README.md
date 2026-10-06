@@ -13,6 +13,10 @@ When you run many Claude Code sessions at once, the hard part is not the messagi
 
 *Bosmang* is Belter Creole for "boss", from *The Expanse*. In this crew, the bosmang is you.
 
+## Design rule: decide, don't do
+
+Everything injected at session start is paid for in every session's context, every time. So bosmang injects only what changes how a session **decides**: the roles, the authority matrix, the message tags, the test for interrupting you, and a few local rules. How to **carry something out** (exact commands, templates, closing routines) goes in a procedures file that skills read only when they run. `charter.py --check` reports what is injected against a 7,000-character budget. Claude Code also shows at most 10,000 characters of any one hook's output in full, and replaces anything longer with a 2KB preview.
+
 ## Install
 
 ```bash
@@ -36,12 +40,14 @@ Or do it by hand. Everything is optional. Without config, the orders refer to "t
   "coordinator": "nagata",
   "ledger_dir": "~/notes/crew",
   "authority_matrix": "~/notes/crew/authority-matrix.md",
-  "append": ["~/notes/crew/local-rules.md"]
+  "append": ["~/notes/crew/local-rules.md"],
+  "procedures": ["~/notes/crew/procedures.md"]
 }
 ```
 
 - `authority_matrix` replaces the [bundled matrix](plugins/bosmang/authority-matrix.md). Fork it; the rows are where your own rules belong.
-- `append` adds your own markdown after the orders: tracker conventions, infrastructure rules, anything specific to where you work.
+- `append` adds short local rules after the orders, such as which tools you use and what never to do. They're injected into every session, so keep them brief.
+- `procedures` holds how-to detail: tracker and version-control commands, and the **Closing steps** that `/bosmang:close` runs. It isn't injected; skills read it with `charter.py --procedures`.
 
 To validate the config, and to see exactly what your sessions will read:
 

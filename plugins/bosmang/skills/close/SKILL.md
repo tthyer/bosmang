@@ -5,13 +5,13 @@ description: Close one scope or thread of work: check it really is closed, sum i
 
 # close
 
-The standing orders, loaded at session start, give the ledger command, the report format and the authority matrix. Your local rules may add **Tracker**, **Version control** and **Closing steps** sections, and where they exist they say how to carry out the steps below.
+The standing orders, loaded at session start, give the ledger command, the message tags and the authority matrix. The user's procedures aren't loaded until you ask for them. Before step 1, run `python3 <scripts>/charter.py --procedures`, where `<scripts>` is the directory holding the `ledger.py` named in the standing orders. Its **Tracker**, **Version control** and **Closing steps** sections, where present, say how to carry out the steps below.
 
 Ask the human nothing along the way. If a step needs their decision, finish every step that doesn't depend on it, then ask all the open questions together in one `AskUserQuestion` form at the end.
 
 ## 1. Read the live state
 
-Earlier turns and peer messages go stale, so check live and never repeat state from memory. Use the commands in your local rules' Tracker and Version control sections. With none, use `git status -sb` and the ledger's `list` output.
+Earlier turns and peer messages go stale, so check live and never repeat state from memory. Use the commands in the procedures' Tracker and Version control sections. With none, use `git status -sb` and the ledger's `list` output.
 
 If the work isn't actually closed (a PR is still open, a check failed, the branch has unpushed commits), stop and say so. The thread hasn't closed.
 
@@ -33,7 +33,7 @@ Skip anything already done: handoffs already in the ledger, or a `[DONE]` this s
 
 ## 4. Run the closing steps
 
-Run the **Closing steps** section of your local rules, in order. Each step is still subject to the authority matrix: a step that the matrix marks "Ask" goes into the end-of-run question form instead. Run anything that deletes this session's working directory last.
+Run the procedures' **Closing steps** section, in order. Each step is still subject to the authority matrix: a step that the matrix marks "Ask" goes into the end-of-run question form instead. Run anything that deletes this session's working directory last.
 
 If there are no closing steps, you're done.
 

@@ -1,6 +1,6 @@
 ---
 name: init
-description: Set up bosmang for this user. Asks how they track work and versions, who they are and what to call the coordinator. Writes ~/.config/bosmang/config.json and a local-rules file (tracker, version control, closing steps), forks the authority matrix, validates everything, and finds older rules and skills that would conflict. Use when the user says "set up bosmang", "bosmang init", "/bosmang:init", "configure bosmang", or changes their tracker, tools or coordinator. Re-runnable, and it starts from the current config.
+description: Set up bosmang for this user. Asks how they track work and versions, who they are and what to call the coordinator. Writes ~/.config/bosmang/config.json, short local rules, and a procedures file (tracker, version control, closing steps), forks the authority matrix, validates everything, and finds older rules and skills that would conflict. Use when the user says "set up bosmang", "bosmang init", "/bosmang:init", "configure bosmang", or changes their tracker, tools or coordinator. Re-runnable, and it starts from the current config.
 ---
 
 # init
@@ -21,10 +21,15 @@ Run `charter.py --check`. If a config exists, show it and the local-rules file i
 
 ## 3. How they work
 
-Each answer becomes a section of the local-rules file (default `~/.config/bosmang/local-rules.md`, listed under `append` in the config). Write the sections as instructions to a session, with the exact commands.
+Each answer is split between two files, and getting the split right is what keeps every session's context small:
+
+- **Local rules** (`~/.config/bosmang/local-rules.md`, under `append`) are injected into every session. They hold only what changes how a session *decides*: which tracker and version-control tools exist, naming conventions, the one-line "never do X". Keep them to a few hundred words.
+- **Procedures** (`~/.config/bosmang/procedures.md`, under `procedures`) are read only by `/bosmang:close` and `/bosmang:init` when they run. They hold how to *carry things out*: exact commands, entry templates, multi-step routines.
+
+For example, "Work is tracked in Jira through `acli`; never pick a project without asking" is a local rule, while the `acli` command that transitions an item is a procedure. Write procedures as instructions to a session, with the exact commands.
 
 **Tracker: "How do you track work?"**
-- **They use a tracker** (Jira, Linear, GitHub Issues, or something else). Ask which CLI sessions should use, then check it's installed and signed in with a read-only command, such as `acli jira auth status`, `gh auth status` or `linear --version`. Record:
+- **They use a tracker** (Jira, Linear, GitHub Issues, or something else). Ask which CLI sessions should use, then check it's installed and signed in with a read-only command, such as `acli jira auth status`, `gh auth status` or `linear --version`. Record the tool and any "never" rules as local rules, and these as a **Tracker** procedure:
   - how to read an item's status;
   - how to transition one, and which transitions a session may make without asking;
   - the key format;
@@ -36,8 +41,9 @@ Each answer becomes a section of the local-rules file (default `~/.config/bosman
 - Recommend **git**. If they host on GitHub, recommend **`gh`** for PRs, checks and reviews; check `gh auth status`. For another host, ask for its CLI (for example `glab`).
 - Ask how they make a working copy for parallel work: `git worktree`, a wrapper such as worktrunk (`wt`), or separate clones. Record the exact creation command; one session per worktree avoids sessions editing the same checkout.
 - Ask whether PRs open as drafts, and how branches are named.
+- Put the tools and conventions in the local rules, and the exact commands in a **Version control** procedure.
 
-**Closing steps: "When a piece of work closes, what else should happen?"** `/bosmang:close` already checks live state, sums up, records handoffs and reports `[DONE]`. These steps come after it. Offer the usual ones:
+**Closing steps: "When a piece of work closes, what else should happen?"** `/bosmang:close` already checks live state, sums up, records handoffs and reports `[DONE]`. These steps come after it, and go in a **Closing steps** procedure. Offer the usual ones:
 - moving the ticket to Done;
 - removing the worktree;
 - writing a log or journal entry, with its path and format;
@@ -53,7 +59,7 @@ Offer to fork the bundled `authority-matrix.md` to `~/.config/bosmang/authority-
 
 Write `config.json` with only the keys chosen, since the defaults cover the rest. Then:
 
-- Run `charter.py --check`. It must report `ok`; fix it and run it again until it does.
+- Run `charter.py --check`. It must report `ok`; fix it and run it again until it does. If it notes that the injected text is over budget, move commands, templates and routines out of the local rules into the procedures file.
 - Run `charter.py --print` and show the user the roles section, the authority table and their local rules, as their sessions will see them.
 
 ## 6. Retire what conflicts
@@ -69,7 +75,7 @@ Look for anything that:
 - closes, wraps up or hands off a thread;
 - **acts where the matrix says "Ask"**, or asks where the matrix says "Yes". Check for pushes, merges, ticket transitions, worktree removal, production writes and posting to people.
 
-List each finding with its file and line, and propose one of: delete it, move it into the local rules (a skill's closing ritual usually becomes closing steps), or leave it and change the matrix to match. Change nothing until the user says. If open handoffs live only in a running session's context, have that session record them with `ledger.py handoff add` before anything is restarted or retired.
+List each finding with its file and line, and propose one of: delete it, move it into the local rules or the procedures (a skill's closing ritual usually becomes Closing steps), or leave it and change the matrix to match. Change nothing until the user says. If open handoffs live only in a running session's context, have that session record them with `ledger.py handoff add` before anything is restarted or retired.
 
 ## 7. Tell them how to start
 
