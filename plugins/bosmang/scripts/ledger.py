@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Append-only ledger of project leads and handoffs, shared by every session in the crew.
 
-Each change is one JSON line appended under an exclusive lock, so sessions writing at the
-same moment never overwrite each other, and the files double as history. Current state is
-the fold of all events: the last event for a key wins.
+Each change is one JSON line appended under an exclusive lock, so sessions writing at the same moment never overwrite each other, and the files double as history. Current state is the fold of all events: the last event for a key wins.
 
 Leads are keyed by scope, not session name, because sessions rename themselves.
 
@@ -68,10 +66,82 @@ def open_items(name, key):
     return [item for item in fold(name, key).values() if item["event"] != "close"]
 
 
+def resolve(path):
+    return str(Path(path).expanduser().resolve())
+
+
 def lead_open(args):
     event = {"ts": now(), "event": "open", "scope": args.scope, "session": args.session}
-    event.update({k: v for k, v in (("branch", args.branch), ("worktree", args.worktree)) if v})
+    if args.branch:
+        event["branch"] = args.branch
+    if args.worktree:
+        event["worktree"] = resolve(args.worktree)
+    # Claude Code exports the running session's ID to its tools. Recording it lets the
+    # session hooks tell the lead's own session from a visitor in the same worktree.
+    session_id = args.session_id or os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if session_id:
+        event["session_id"] = session_id
     return append("leads.jsonl", event)
+
+
+def leads_in(cwd):
+    """Open leads whose registered worktree is cwd or contains it."""
+    cwd = Path(resolve(cwd))
+    return [
+        lead
+        for lead in open_items("leads.jsonl", "scope")
+        if lead.get("worktree") and (cwd == Path(lead["worktree"]) or Path(lead["worktree"]) in cwd.parents)
+    ]
+
+
+def lead_ended(session_id, cwd, reason):
+    """Record that a lead's own session ended. Closes nothing.
+
+    A lead with a recorded session_id is matched by it alone, so another session ending
+    in the same worktree (a headless `claude -p` run reports reason "other", not the
+    documented prompt_input_exit) leaves it alone. A lead without one falls back to its
+    worktree."""
+    ended = []
+    for lead in open_items("leads.jsonl", "scope"):
+        mine = lead.get("session_id") == session_id if lead.get("session_id") else lead in leads_in(cwd)
+        if mine and lead["event"] != "ended":
+            ended.append(append("leads.jsonl", {"ts": now(), "event": "ended", "scope": lead["scope"], "reason": reason}))
+    return ended
+
+
+# /clear ends the conversation, not the terminal's hold on its scope; the session that
+# replaces it takes the lead over in session_start_hook.
+IGNORED_END_REASONS = {"clear"}
+
+
+def session_start_hook(args):
+    """SessionStart hook entry: a session working in an orphaned lead's worktree again
+    (typically a --resume) takes the lead back. Prints nothing; never fails the start."""
+    try:
+        payload = json.load(sys.stdin)
+        session_id, source = payload.get("session_id"), payload.get("source")
+        for lead in leads_in(payload["cwd"]):
+            # An orphaned lead goes to whoever works in its worktree next. After /clear,
+            # the new session in this worktree inherits a live lead from the old one.
+            if lead["event"] == "ended" or (source == "clear" and lead.get("session_id") != session_id):
+                event = {"ts": now(), "event": "resumed", "scope": lead["scope"]}
+                if session_id:
+                    event["session_id"] = session_id
+                append("leads.jsonl", event)
+    except Exception:  # noqa: BLE001 -- a hook must never break startup
+        pass
+    return None
+
+
+def session_end_hook(args):
+    """SessionEnd hook entry: reads the hook's JSON on stdin. Never fails the session's exit."""
+    try:
+        payload = json.load(sys.stdin)
+        if payload.get("reason") not in IGNORED_END_REASONS:
+            lead_ended(payload.get("session_id"), payload.get("cwd", "."), payload.get("reason", "other"))
+    except Exception:  # noqa: BLE001 -- a hook must never break exit
+        pass
+    return None
 
 
 def lead_close(args):
@@ -107,7 +177,14 @@ def show(args):
     handoffs = sorted(open_items("handoffs.jsonl", "id"), key=lambda h: h.get("due", "9999"))
     if args.json:
         return {"leads": leads, "handoffs": handoffs}
-    lines = ["Leads:"] + [f"  {l['scope']}  {l['session']}  since {l['ts'][:10]}" for l in leads]
+    lines = ["Leads:"]
+    for l in leads:
+        line = f"  {l['scope']}  {l['session']}"
+        if l["event"] != "ended":
+            line += f"  since {l['ts'][:10]}"
+        else:
+            line += f"  ORPHANED: session ended {l['ts'][:16].replace('T', ' ')} ({l['reason']}), not closed"
+        lines.append(line)
     lines += ["Handoffs:"] + [
         f"  {h['id']}  {h.get('due', '')}  {h['item']}  (from {h['from']}"
         + (f", for {h['owner']})" if "owner" in h else ")")
@@ -127,6 +204,7 @@ def parser():
     o.add_argument("--session", required=True)
     o.add_argument("--branch")
     o.add_argument("--worktree")
+    o.add_argument("--session-id", help="defaults to $CLAUDE_CODE_SESSION_ID")
     o.set_defaults(fn=lead_open)
     c = lead.add_parser("close")
     c.add_argument("--scope", required=True)
@@ -143,6 +221,11 @@ def parser():
     hc.add_argument("id")
     hc.add_argument("--note")
     hc.set_defaults(fn=handoff_close)
+
+    start = sub.add_parser("session-start-hook", help="SessionStart hook entry; reads hook JSON on stdin")
+    start.set_defaults(fn=session_start_hook)
+    end = sub.add_parser("session-end-hook", help="SessionEnd hook entry; reads hook JSON on stdin")
+    end.set_defaults(fn=session_end_hook)
 
     ls = sub.add_parser("list")
     ls.add_argument("--json", action="store_true")

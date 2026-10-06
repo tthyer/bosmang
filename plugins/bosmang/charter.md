@@ -64,7 +64,7 @@ Before anything reaches $owner, ask whether it changes what $owner does today.
 
 ## The ledger
 
-State that must outlive any one session's context lives in the ledger, not in the coordinator's memory. Session names change, so leads are keyed by scope.
+State that must outlive any one session's context lives in the ledger, not in the coordinator's memory. Session names change, so leads are keyed by scope and recognised by their worktree. When a lead's session ends, the ledger marks the lead orphaned, and closes nothing. When a session starts in that worktree again, it takes the lead back. Ending a session never closes a scope; only `/bosmang:close` does.
 
 ```
 $ledger lead open --scope <EPIC> --session <name> [--branch <b>] [--worktree <path>]

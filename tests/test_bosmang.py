@@ -23,7 +23,7 @@ charter = load("charter")
 ledger = load("ledger")
 
 
-class LedgerTest(unittest.TestCase):
+class LedgerCase(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.TemporaryDirectory()
         os.environ["BOSMANG_LEDGER_DIR"] = self.dir.name
@@ -41,6 +41,9 @@ class LedgerTest(unittest.TestCase):
     def state(self):
         return json.loads(self.run_ledger("list", "--json"))
 
+
+
+class LedgerTest(LedgerCase):
     def test_lead_survives_rename_and_closes_by_scope(self):
         self.run_ledger("lead", "open", "--scope", "EPIC-1", "--session", "old-name")
         self.run_ledger("lead", "open", "--scope", "EPIC-1", "--session", "new-name")
@@ -75,6 +78,89 @@ class LedgerTest(unittest.TestCase):
             p.wait()
         lines = (Path(self.dir.name) / "handoffs.jsonl").read_text().splitlines()
         self.assertEqual(sorted(json.loads(l)["item"] for l in lines), sorted(f"item-{i}" for i in range(20)))
+
+
+class SessionHookTest(LedgerCase):
+    """The hooks see session_id, cwd and reason. On macOS the temp dir is a symlink
+    (/var -> /private/var), which also exercises path resolution."""
+
+    def setUp(self):
+        super().setUp()
+        # These tests may themselves run inside Claude Code, which exports its own ID.
+        self.saved_id = os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+        self.worktree = tempfile.TemporaryDirectory()
+        (Path(self.worktree.name) / "src").mkdir()
+
+    def tearDown(self):
+        if self.saved_id is not None:
+            os.environ["CLAUDE_CODE_SESSION_ID"] = self.saved_id
+        self.worktree.cleanup()
+        super().tearDown()
+
+    def open_lead(self, *extra):
+        self.run_ledger("lead", "open", "--scope", "EPIC-1", "--session", "s", "--worktree", self.worktree.name, *extra)
+
+    def hook(self, name, payload):
+        stdin = payload if isinstance(payload, str) else json.dumps(payload)
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDE_CODE_SESSION_ID"}
+        return subprocess.run(
+            [sys.executable, str(SCRIPTS / "ledger.py"), name], input=stdin, capture_output=True, text=True, env=env
+        )
+
+    def end(self, session_id, reason="other", cwd=None):
+        self.hook("session-end-hook", {"session_id": session_id, "cwd": cwd or self.worktree.name, "reason": reason})
+
+    def lead(self):
+        (lead,) = self.state()["leads"]
+        return lead
+
+    def test_lead_open_records_the_session_from_the_environment(self):
+        os.environ["CLAUDE_CODE_SESSION_ID"] = "from-env"
+        self.open_lead()
+        self.assertEqual(self.lead()["session_id"], "from-env")
+
+    def test_own_session_ending_orphans_the_lead_from_any_directory(self):
+        self.open_lead("--session-id", "LEAD")
+        self.end("LEAD", reason="logout", cwd=tempfile.gettempdir())
+        self.assertEqual(self.lead()["event"], "ended")
+        self.assertIn("ORPHANED", self.run_ledger("list"))
+
+    def test_a_visitor_ending_in_the_worktree_is_ignored(self):
+        # A headless `claude -p` run reports reason "other", like an interactive exit.
+        self.open_lead("--session-id", "LEAD")
+        self.end("VISITOR", cwd=str(Path(self.worktree.name) / "src"))
+        self.assertEqual(self.lead()["event"], "open")
+
+    def test_clear_is_ignored(self):
+        self.open_lead("--session-id", "LEAD")
+        self.end("LEAD", reason="clear")
+        self.assertEqual(self.lead()["event"], "open")
+
+    def test_resume_takes_an_orphaned_lead_back(self):
+        self.open_lead("--session-id", "LEAD")
+        self.end("LEAD", reason="resume")
+        result = self.hook("session-start-hook", {"session_id": "LEAD", "cwd": self.worktree.name, "source": "resume"})
+        self.assertEqual(result.stdout, "", "a SessionStart hook's stdout becomes context")
+        self.assertEqual(self.lead()["event"], "resumed")
+        self.assertNotIn("ORPHANED", self.run_ledger("list"))
+
+    def test_the_session_after_clear_inherits_the_lead(self):
+        self.open_lead("--session-id", "OLD")
+        self.end("OLD", reason="clear")
+        self.hook("session-start-hook", {"session_id": "NEW", "cwd": self.worktree.name, "source": "clear"})
+        self.assertEqual(self.lead()["session_id"], "NEW")
+        self.end("NEW")
+        self.assertEqual(self.lead()["event"], "ended")
+
+    def test_a_lead_without_a_session_id_falls_back_to_its_worktree(self):
+        self.open_lead()
+        self.end("ANYONE", cwd=str(Path(self.worktree.name) / "src"))
+        self.assertEqual(self.lead()["event"], "ended")
+
+    def test_hooks_never_fail(self):
+        for name in ("session-start-hook", "session-end-hook"):
+            result = self.hook(name, "not json")
+            self.assertEqual((result.returncode, result.stdout), (0, ""))
 
 
 class CharterTest(unittest.TestCase):

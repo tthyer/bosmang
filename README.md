@@ -22,6 +22,8 @@ claude plugin install bosmang@bosmang --scope user
 
 A `SessionStart` hook injects the standing orders into every session, in every repo, and again after `/clear` and compaction.
 
+Two more hooks keep the ledger honest without deciding anything. When a session ends in a lead's worktree, the lead is marked **orphaned**. When a session starts there again, for example on `--resume`, it takes the lead back. `/clear` and headless `claude -p` runs are ignored. Ending a session never closes a scope; only `/bosmang:close` does.
+
 ## Configure
 
 Run `/bosmang:init` in any session. It asks how you track work (your tracker and its CLI, or bosmang's ledger), how you version code (git, with `gh` if you use GitHub), what should happen when work closes, who you are and what to call the coordinator. It writes the config and a local-rules file, forks the authority matrix, and validates everything. Then it finds older rules, memories and skills that would contradict the orders, including any skill that acts where your matrix says "Ask".
