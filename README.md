@@ -24,7 +24,7 @@ A `SessionStart` hook injects the standing orders into every session, in every r
 
 ## Configure
 
-Run `/bosmang:init` in any session. It asks who you are, what to call the coordinator, where the ledger lives and whether to fork the authority matrix, then writes and validates the config. It also finds older coordination rules in your `CLAUDE.md` files and memory that would contradict the orders.
+Run `/bosmang:init` in any session. It asks how you track work (your tracker and its CLI, or bosmang's ledger), how you version code (git, with `gh` if you use GitHub), what should happen when work closes, who you are and what to call the coordinator. It writes the config and a local-rules file, forks the authority matrix, and validates everything. Then it finds older rules, memories and skills that would contradict the orders, including any skill that acts where your matrix says "Ask".
 
 Or do it by hand. Everything is optional. Without config, the orders refer to "the human" and "coordinator". Write `~/.config/bosmang/config.json`, or point `$BOSMANG_CONFIG` at a file:
 
@@ -51,7 +51,8 @@ python3 plugins/bosmang/scripts/charter.py --print
 ## Use
 
 - **Coordinator:** start a fresh session with `claude --agent bosmang:coordinator -n <coordinator>`. `--agent` applies only when a session is created; resuming an existing session with it doesn't change its agent.
-- **Lead:** in any session, `/bosmang:lead EPIC-123`. This registers the session in the ledger and tells the coordinator. Say the scope is closed and the lead records its handoffs and deregisters.
+- **Lead:** in any session, `/bosmang:lead EPIC-123`. This registers the session in the ledger and tells the coordinator.
+- **Close:** `/bosmang:close` checks the work really is closed, sums it up (shipped, verified, unverified), records what's left as handoffs, closes the lead, reports `[DONE]`, then runs your own closing steps from the local rules.
 - **Ledger:** `python3 plugins/bosmang/scripts/ledger.py list`.
 
 Stdlib Python only. No venv, no install.

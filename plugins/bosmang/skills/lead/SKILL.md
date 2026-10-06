@@ -1,6 +1,6 @@
 ---
 name: lead
-description: Make this session the project lead for one scope (an epic, ticket or workstream). It registers the session in the bosmang ledger and announces it to the coordinator. Use when the human says "you're the lead for X", "make this session the lead for X", "take over X", or "/bosmang:lead X". Also closes a lead when they say the scope is done.
+description: Make this session the project lead for one scope (an epic, ticket or workstream). It registers the session in the bosmang ledger and announces it to the coordinator. Use when the human says "you're the lead for X", "make this session the lead for X", "take over X", or "/bosmang:lead X". Closing a scope is /bosmang:close.
 ---
 
 # lead
@@ -17,8 +17,4 @@ The standing orders, loaded at session start, define the project-lead role and g
 
 ## Finish
 
-Run this only when the human says the scope is closed. A merged PR is not enough.
-
-1. For anything left undone, run `handoff add`, one item per handoff, with a suggested owner.
-2. `lead close --scope <KEY>`.
-3. Send the coordinator `[DONE] <KEY> closed: <one line>, <n> handoffs in the ledger`.
+Only when the human says the scope is closed (a merged PR is not enough), run `/bosmang:close` for the scope. It records the handoffs, closes this lead and reports `[DONE]`.
