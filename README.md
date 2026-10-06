@@ -24,12 +24,14 @@ A `SessionStart` hook injects the standing orders into every session, in every r
 
 ## Configure
 
-Everything is optional. Without config, the orders refer to "the human" and "coordinator". Write `~/.config/bosmang/config.json`, or point `$BOSMANG_CONFIG` at a file:
+Run `/bosmang:init` in any session. It asks who you are, what to call the coordinator, where the ledger lives and whether to fork the authority matrix, then writes and validates the config. It also finds older coordination rules in your `CLAUDE.md` files and memory that would contradict the orders.
+
+Or do it by hand. Everything is optional. Without config, the orders refer to "the human" and "coordinator". Write `~/.config/bosmang/config.json`, or point `$BOSMANG_CONFIG` at a file:
 
 ```json
 {
   "owner": "Ada",
-  "coordinator": "nous",
+  "coordinator": "nagata",
   "ledger_dir": "~/notes/crew",
   "authority_matrix": "~/notes/crew/authority-matrix.md",
   "append": ["~/notes/crew/local-rules.md"]
@@ -39,15 +41,16 @@ Everything is optional. Without config, the orders refer to "the human" and "coo
 - `authority_matrix` replaces the [bundled matrix](plugins/bosmang/authority-matrix.md). Fork it; the rows are where your own rules belong.
 - `append` adds your own markdown after the orders: tracker conventions, infrastructure rules, anything specific to where you work.
 
-To see exactly what your sessions will read:
+To validate the config, and to see exactly what your sessions will read:
 
 ```bash
+python3 plugins/bosmang/scripts/charter.py --check
 python3 plugins/bosmang/scripts/charter.py --print
 ```
 
 ## Use
 
-- **Coordinator:** start one long-lived session as the coordinator agent and name it to match `coordinator`. *Unverified:* `claude --agent bosmang:coordinator`.
+- **Coordinator:** start a fresh session with `claude --agent bosmang:coordinator -n <coordinator>`. `--agent` applies only when a session is created; resuming an existing session with it doesn't change its agent.
 - **Lead:** in any session, `/bosmang:lead EPIC-123`. This registers the session in the ledger and tells the coordinator. Say the scope is closed and the lead records its handoffs and deregisters.
 - **Ledger:** `python3 plugins/bosmang/scripts/ledger.py list`.
 

@@ -1,6 +1,6 @@
 {
   "owner": "Ada",
-  "coordinator": "nous",
+  "coordinator": "nagata",
   "ledger_dir": "~/notes/crew",
   "authority_matrix": "~/notes/crew/authority-matrix.md",
   "append": ["~/notes/crew/local-rules.md"]

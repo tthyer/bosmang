@@ -88,12 +88,31 @@ class CharterTest(unittest.TestCase):
         with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as extra:
             extra.write("## Local rules\nUse the tracker.")
         try:
-            text = charter.render({"owner": "Ada", "coordinator": "nous", "append": [extra.name]})
+            text = charter.render({"owner": "Ada", "coordinator": "nagata", "append": [extra.name]})
         finally:
             os.unlink(extra.name)
         self.assertIn("working for Ada", text)
-        self.assertIn("`nous`", text)
+        self.assertIn("`nagata`", text)
         self.assertTrue(text.rstrip().endswith("Use the tracker."))
+
+    def test_problems_flags_bad_keys_and_missing_files(self):
+        found = charter.problems({"owner": "", "coordinater": "x", "authority_matrix": "/nonexistent.md"})
+        self.assertEqual(len(found), 3)
+        self.assertEqual(charter.problems({"owner": "Ada", "coordinator": "nagata"}), [])
+
+    def test_check_exit_codes(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as cfg:
+            cfg.write('{"owner": "Ada", "append": ["/nonexistent.md"]}')
+        try:
+            run = lambda: subprocess.run(
+                [sys.executable, str(SCRIPTS / "charter.py"), "--check"],
+                capture_output=True, text=True, env=dict(os.environ, BOSMANG_CONFIG=cfg.name),
+            )
+            self.assertEqual(run().returncode, 1)
+            Path(cfg.name).write_text('{"owner": "Ada"}')
+            self.assertEqual(run().returncode, 0)
+        finally:
+            os.unlink(cfg.name)
 
     def test_hook_output_is_session_start_json(self):
         env = dict(os.environ, BOSMANG_CONFIG="/nonexistent/config.json")

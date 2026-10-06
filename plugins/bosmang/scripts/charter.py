@@ -13,6 +13,7 @@ Config is JSON at $BOSMANG_CONFIG, else ~/.config/bosmang/config.json. Every key
   append            paths to markdown files appended after the orders, for local rules
 
 --print writes the rendered orders as plain text instead of hook JSON.
+--check reports where the config was read from and every problem with it, and exits 1 if any.
 """
 
 import json
@@ -26,11 +27,53 @@ PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = Path.home() / ".config" / "bosmang" / "config.json"
 
 
+KEYS = {"owner", "coordinator", "ledger_dir", "authority_matrix", "append"}
+
+
+def config_path():
+    return Path(os.environ.get("BOSMANG_CONFIG", DEFAULT_CONFIG)).expanduser()
+
+
 def load_config():
-    path = Path(os.environ.get("BOSMANG_CONFIG", DEFAULT_CONFIG)).expanduser()
+    path = config_path()
     if not path.exists():
         return {}
     return json.loads(path.read_text())
+
+
+def problems(config):
+    found = [f"unknown key {k!r}" for k in sorted(set(config) - KEYS)]
+    for key in ("owner", "coordinator"):
+        if key in config and not (isinstance(config[key], str) and config[key].strip()):
+            found.append(f"{key} must be a non-empty string")
+    paths = [("authority_matrix", config["authority_matrix"])] if config.get("authority_matrix") else []
+    paths += [("append", p) for p in config.get("append", [])]
+    for key, p in paths:
+        if not Path(p).expanduser().is_file():
+            found.append(f"{key}: no such file {p}")
+    ledger = config.get("ledger_dir")
+    if ledger and Path(ledger).expanduser().exists() and not Path(ledger).expanduser().is_dir():
+        found.append(f"ledger_dir: {ledger} exists and is not a directory")
+    return found
+
+
+def check():
+    path = config_path()
+    if not path.exists():
+        print(f"no config at {path}; using defaults")
+        return 0
+    try:
+        config = json.loads(path.read_text())
+    except json.JSONDecodeError as e:
+        print(f"{path}: not valid JSON: {e}")
+        return 1
+    print(f"config: {path}" + (f" -> {path.resolve()}" if path.is_symlink() else ""))
+    found = problems(config)
+    for p in found:
+        print(f"  problem: {p}")
+    if not found:
+        print("  ok")
+    return 1 if found else 0
 
 
 def read(path):
@@ -51,6 +94,8 @@ def render(config):
 
 
 def main():
+    if "--check" in sys.argv:
+        sys.exit(check())
     text = render(load_config())
     if "--print" in sys.argv:
         sys.stdout.write(text)
