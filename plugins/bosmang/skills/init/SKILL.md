@@ -80,6 +80,7 @@ A row that says "Yes" is not enough on its own: Claude Code's permission prompts
 
 For each command a procedure runs without asking, give the user the rule that allows it, and tell them:
 - the rules go in their **global** settings, `~/.claude/settings.json`, under `permissions.allow`. If the file doesn't exist, they create it with `{"permissions": {"allow": [ … ]}}`;
+- if that file is generated (a dotfiles setup script, for example; look for one that writes it), the rules go in the source it's built from, or the next run drops them;
 - each rule names one command narrowly, such as `Bash(git -C /path/to/journal-repo push:*)`. Auto mode honours narrow rules before its own checks, but sends broad ones such as `Bash(git:*)` through them anyway;
 - these are theirs to add, in their editor or with `/permissions`. A session adding rules that widen its own permissions is what auto mode exists to stop.
 
