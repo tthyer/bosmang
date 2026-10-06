@@ -1,0 +1,7 @@
+{
+  "owner": "Ada",
+  "coordinator": "nous",
+  "ledger_dir": "~/notes/crew",
+  "authority_matrix": "~/notes/crew/authority-matrix.md",
+  "append": ["~/notes/crew/local-rules.md"]
+}

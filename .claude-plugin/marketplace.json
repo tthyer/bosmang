@@ -1,0 +1,19 @@
+{
+  "name": "bosmang",
+  "owner": {
+    "name": "T. Thyer",
+    "url": "https://github.com/tthyer"
+  },
+  "metadata": {
+    "description": "Standing orders for a crew of long-lived Claude Code sessions",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "bosmang",
+      "source": "./plugins/bosmang",
+      "description": "Roles, an authority matrix and typed reports for long-lived Claude Code sessions, so the human is interrupted only for what is theirs to decide.",
+      "category": "productivity"
+    }
+  ]
+}
