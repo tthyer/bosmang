@@ -96,9 +96,10 @@ Sessions started before this run have old rules in context and no standing order
 
 From the directory chosen in step 2, run `claude --bg --agent bosmang:coordinator -n <coordinator name> "Run the ledger list and report what is open."`. `--agent` applies only when a session is created, which is why the coordinator is always a new session. If it refuses with "Workspace not trusted", ask the user to run `claude` in that directory once and accept the prompt, then try again.
 
-Tell the user:
-- **Coordinator:** `claude attach <coordinator name>` opens it.
-- **Restarting the rest:** a stopped session picks up the orders when it resumes: `claude --resume <name>`, or `claude --bg --resume <sessionId>` for a background one. A session that held a scope takes it back when it resumes; the ledger marks it resumed. Work that's better begun fresh starts a new session with `/bosmang:lead <SCOPE>`.
-- **Closing:** `/bosmang:close`.
+Record it, so `/bosmang:resume` can bring the same session back: take its `sessionId` from `claude agents --json`, then run `ledger.py coordinator set --name <coordinator name> --session-id <sessionId> --cwd <directory>`.
 
-Finish by running `ledger.py list`, so the user sees the ledger's starting state.
+## 9. Bring the crew back
+
+Run `/bosmang:resume`. It finds the coordinator running and offers to resume the leads stopped in step 7. Then tell the user:
+- `claude attach <coordinator name>` opens the coordinator; `claude agents` shows every session.
+- `/bosmang:resume` brings the crew back after any restart; `/bosmang:lead <SCOPE>` starts new work; `/bosmang:close` finishes it.

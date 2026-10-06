@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent.parent / "plugins" / "bosmang" / "scripts"
@@ -78,6 +79,20 @@ class LedgerTest(LedgerCase):
             p.wait()
         lines = (Path(self.dir.name) / "handoffs.jsonl").read_text().splitlines()
         self.assertEqual(sorted(json.loads(l)["item"] for l in lines), sorted(f"item-{i}" for i in range(20)))
+
+    def test_the_latest_coordinator_wins(self):
+        self.assertIsNone(self.state()["coordinator"])
+        self.run_ledger("coordinator", "set", "--name", "old", "--session-id", "aaaa", "--cwd", self.dir.name)
+        self.run_ledger("coordinator", "set", "--name", "new", "--session-id", "bbbb", "--cwd", self.dir.name)
+        coord = self.state()["coordinator"]
+        self.assertEqual((coord["name"], coord["session_id"]), ("new", "bbbb"))
+        self.assertIn("Coordinator: new  session bbbb", self.run_ledger("list"))
+
+    def test_coordinator_needs_a_session_id(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("CLAUDE_CODE_SESSION_ID", None)
+            with self.assertRaises(SystemExit):
+                self.run_ledger("coordinator", "set", "--name", "c")
 
 
 class SessionHookTest(LedgerCase):

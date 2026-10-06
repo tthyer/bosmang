@@ -59,6 +59,7 @@ python3 plugins/bosmang/scripts/charter.py --print
 ## Use
 
 - **Coordinator:** `/bosmang:init` starts it as a background session, after closing down the sessions already running; open it with `claude attach <coordinator>`. To start one by hand: `claude --bg --agent bosmang:coordinator -n <coordinator>`. `--agent` applies only when a session is created; resuming an existing session with it doesn't change its agent.
+- **Resume:** `/bosmang:resume` brings the crew back after a restart: the coordinator session the ledger records (it keeps its role and history), then any lead whose session ended without closing its scope.
 - **Lead:** in any session, `/bosmang:lead EPIC-123`. This registers the session in the ledger and tells the coordinator.
 - **Close:** `/bosmang:close` checks the work really is closed, sums it up (shipped, verified, unverified), records what's left as handoffs, closes the lead, reports `[DONE]`, then runs your own closing steps from the local rules.
 - **Ledger:** `python3 plugins/bosmang/scripts/ledger.py list`.

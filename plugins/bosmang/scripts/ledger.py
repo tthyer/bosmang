@@ -3,7 +3,8 @@
 
 Each change is one JSON line appended under an exclusive lock, so sessions writing at the same moment never overwrite each other, and the files double as history. Current state is the fold of all events: the last event for a key wins.
 
-Leads are keyed by scope, not session name, because sessions rename themselves.
+Leads are keyed by scope, not session name, because sessions rename themselves. The
+coordinator is recorded by session ID, so /bosmang:resume can bring that same session back.
 
 The ledger directory comes from the same config as charter.py (ledger_dir), overridable
 with $BOSMANG_LEDGER_DIR.
@@ -144,6 +145,18 @@ def session_end_hook(args):
     return None
 
 
+def coordinator_set(args):
+    session_id = args.session_id or os.environ.get("CLAUDE_CODE_SESSION_ID")
+    if not session_id:
+        sys.exit("no --session-id, and $CLAUDE_CODE_SESSION_ID is not set")
+    event = {"ts": now(), "role": "coordinator", "name": args.name, "session_id": session_id, "cwd": resolve(args.cwd)}
+    return append("coordinator.jsonl", event)
+
+
+def coordinator():
+    return fold("coordinator.jsonl", "role").get("coordinator")
+
+
 def lead_close(args):
     if args.scope not in {lead["scope"] for lead in open_items("leads.jsonl", "scope")}:
         sys.exit(f"no open lead for scope {args.scope!r}")
@@ -175,9 +188,11 @@ def handoff_close(args):
 def show(args):
     leads = open_items("leads.jsonl", "scope")
     handoffs = sorted(open_items("handoffs.jsonl", "id"), key=lambda h: h.get("due", "9999"))
+    coord = coordinator()
     if args.json:
-        return {"leads": leads, "handoffs": handoffs}
-    lines = ["Leads:"]
+        return {"coordinator": coord, "leads": leads, "handoffs": handoffs}
+    lines = [f"Coordinator: {coord['name']}  session {coord['session_id'][:8]}  in {coord['cwd']}" if coord else "Coordinator: none recorded"]
+    lines.append("Leads:")
     for l in leads:
         line = f"  {l['scope']}  {l['session']}"
         if l["event"] != "ended":
@@ -209,6 +224,13 @@ def parser():
     c = lead.add_parser("close")
     c.add_argument("--scope", required=True)
     c.set_defaults(fn=lead_close)
+
+    coord = sub.add_parser("coordinator").add_subparsers(dest="action", required=True)
+    cs = coord.add_parser("set", help="record the coordinator's session, so /bosmang:resume can bring it back")
+    cs.add_argument("--name", required=True)
+    cs.add_argument("--session-id", help="defaults to $CLAUDE_CODE_SESSION_ID")
+    cs.add_argument("--cwd", default=".", help="the directory it runs in; --resume must run from there")
+    cs.set_defaults(fn=coordinator_set)
 
     handoff = sub.add_parser("handoff").add_subparsers(dest="action", required=True)
     a = handoff.add_parser("add")
