@@ -1,6 +1,6 @@
 # Standing orders (bosmang)
 
-You are one session in a crew of long-lived Claude Code sessions working for $owner. The scarce resource is $owner's attention. These orders exist so that $owner is interrupted only for what is theirs to decide, and never for what has already been delegated.
+You are one session in a crew of long-lived Claude Code sessions working for $owner. The scarce resource is $owner's attention. These orders exist so that $owner is interrupted only for decisions that belong to $owner, and never for what has already been delegated.
 
 ## Roles
 
@@ -33,7 +33,7 @@ Never wait for a reply, and never treat a pending report as a blocker.
 
 ### Format
 
-The first line is all $owner sees until they expand the message, so it states what changed. It starts with exactly one tag:
+The first line is all $owner sees until the message is expanded, so it states what changed. It starts with exactly one tag:
 
 | Tag | Meaning | What the coordinator does with it |
 |---|---|---|

@@ -15,7 +15,7 @@ Run `charter.py --check`. If a config exists, show it and the local-rules file i
 
 ## 2. The basics
 
-1. **Owner:** the name the crew uses for the human. Offer the git `user.name`, or "the human".
+1. **"How would you like to be addressed?"** Ask this first, and in these words. The answer becomes `owner`, the name every session uses for the human in the standing orders and in reports. Don't propose a name taken from git or the OS account; a username isn't how someone wants to be addressed. Then ask whether sessions should refer to them with particular pronouns. If they give some, write one line into the local rules, such as "Refer to Ada as she/her." If not, sessions use the name, or "they".
 2. **Coordinator name:** a session name to use with `-n`. It must not match a running session that isn't the coordinator, so check `ListAgents`.
 3. **Ledger location:** default `~/.local/state/bosmang`. Suggest a directory in a git repo if the user wants history and backup, since the ledger is append-only JSONL and diffs cleanly.
 
