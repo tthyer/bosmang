@@ -217,6 +217,43 @@ class CharterTest(unittest.TestCase):
         finally:
             os.unlink(cfg.name)
 
+    def install(self, draft, home):
+        return subprocess.run(
+            [sys.executable, str(SCRIPTS / "charter.py"), "--install", str(draft)],
+            capture_output=True, text=True, env=dict(os.environ, BOSMANG_CONFIG=str(home / "config.json")),
+        )
+
+    def test_install_moves_a_valid_draft_into_place_and_backs_up(self):
+        with tempfile.TemporaryDirectory() as d:
+            draft, home = Path(d, "draft"), Path(d, "home")
+            draft.mkdir()
+            home.mkdir()
+            (draft / "local-rules.md").write_text("- new rule")
+            (draft / "config.json").write_text(json.dumps({"owner": "Ada", "append": [str(home / "local-rules.md")]}))
+            (home / "local-rules.md").write_text("- old rule")
+            # a symlinked file is written through, never replaced by a plain file
+            real = Path(d, "dotfiles-config.json")
+            real.write_text("{}")
+            (home / "config.json").symlink_to(real)
+
+            run = self.install(draft, home)
+            self.assertEqual(run.returncode, 0, run.stdout)
+            self.assertEqual((home / "local-rules.md").read_text(), "- new rule")
+            self.assertTrue((home / "config.json").is_symlink())
+            self.assertEqual(json.loads(real.read_text())["owner"], "Ada")
+            backups = list(home.glob("backup-*/local-rules.md"))
+            self.assertEqual([b.read_text() for b in backups], ["- old rule"])
+
+    def test_install_refuses_an_invalid_draft(self):
+        with tempfile.TemporaryDirectory() as d:
+            draft, home = Path(d, "draft"), Path(d, "home")
+            draft.mkdir()
+            (draft / "config.json").write_text(json.dumps({"owner": "Ada", "append": [str(home / "missing.md")]}))
+            run = self.install(draft, home)
+            self.assertEqual(run.returncode, 1)
+            self.assertIn("not installed", run.stdout)
+            self.assertFalse(home.exists())
+
     def test_an_oversized_part_becomes_a_pointer_not_a_preview(self):
         self.assertEqual(charter.hook_text("local", "short"), "short")
         text = charter.hook_text("local", "x" * charter.HOOK_LIMIT)

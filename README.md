@@ -30,7 +30,7 @@ Two more hooks keep the ledger honest without deciding anything. When a session 
 
 ## Configure
 
-Run `/bosmang:init` in any session. It asks how you track work (your tracker and its CLI, or bosmang's ledger), how you version code (git, with `gh` if you use GitHub), what should happen when work closes, who you are and what to call the coordinator. It writes the config and a local-rules file, forks the authority matrix, and validates everything. Then it finds older rules, memories and skills that would contradict the orders, including any skill that acts where your matrix says "Ask".
+Run `/bosmang:init` in any session. It asks how you track work (your tracker and its CLI, or bosmang's ledger), how you version code (git, with `gh` if you use GitHub), what should happen when work closes, who you are and what to call the coordinator. It drafts the config, local rules, procedures and your copy of the authority matrix, and you install them with one command (`charter.py --install <draft>`). Changing what sessions may do is your step, not a session's. It also lists the permission rules (for your global `~/.claude/settings.json`) that the steps you've allowed without asking need, so permission prompts and auto mode don't stop them. Then it finds older rules, memories and skills that would contradict the orders, including any skill that acts where your matrix says "Ask".
 
 Or do it by hand. Everything is optional. Without config, the orders refer to "the human" and "coordinator". Write `~/.config/bosmang/config.json`, or point `$BOSMANG_CONFIG` at a file:
 
@@ -60,6 +60,7 @@ python3 plugins/bosmang/scripts/charter.py --print
 
 - **Coordinator:** `/bosmang:init` starts it as a background session, after closing down the sessions already running; open it with `claude attach <coordinator>`. To start one by hand: `claude --bg --agent bosmang:coordinator -n <coordinator>`. `--agent` applies only when a session is created; resuming an existing session with it doesn't change its agent.
 - **Resume:** `/bosmang:resume` brings the crew back after a restart: the coordinator session the ledger records (it keeps its role and history), then any lead whose session ended without closing its scope.
+- **Board:** `/bosmang:board` shows what's in flight: the ledger, the live sessions and, if your procedures say how, your tracker and your own dashboard. `update` refreshes it.
 - **Lead:** in any session, `/bosmang:lead EPIC-123`. This registers the session in the ledger and tells the coordinator.
 - **Close:** `/bosmang:close` checks the work really is closed, sums it up (shipped, verified, unverified), records what's left as handoffs, closes the lead, reports `[DONE]`, then runs your own closing steps from the local rules.
 - **Ledger:** `python3 plugins/bosmang/scripts/ledger.py list`.

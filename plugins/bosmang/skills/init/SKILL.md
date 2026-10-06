@@ -1,6 +1,6 @@
 ---
 name: init
-description: Set up bosmang for this user. Asks how they track work and versions, who they are and what to call the coordinator. Writes ~/.config/bosmang/config.json, short local rules, and a procedures file (tracker, version control, closing steps), forks the authority matrix, validates everything, finds older rules and skills that would conflict, then closes down the running sessions and starts the coordinator. Use when the user says "set up bosmang", "bosmang init", "/bosmang:init", "configure bosmang", or changes their tracker, tools or coordinator. Re-runnable, and it starts from the current config.
+description: Set up bosmang for this user. Asks how they track work and versions, who they are and what to call the coordinator. Drafts the config, short local rules, a procedures file (tracker, version control, closing steps) and a forked authority matrix, which the user installs with one command; lists the permission rules their no-ask steps need; finds older rules and skills that would conflict, then closes down the running sessions and starts the coordinator. Use when the user says "set up bosmang", "bosmang init", "/bosmang:init", "configure bosmang", or changes their tracker, tools or coordinator. Re-runnable, and it starts from the current config.
 ---
 
 # init
@@ -9,9 +9,11 @@ Run every script below with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/<script>"`. 
 
 Ask **one question at a time**, and offer a recommended answer where there is one. Before asking about a tool, check what's already installed and signed in, so the question can say what you found.
 
+**Never write the user's config yourself.** Draft every file in a directory you can write without prompting (your scratchpad if the session lists one, otherwise one from `mktemp -d`), and in step 5 the user installs the whole draft with one command. The standing orders say what every session may do without asking, so changing them is the user's step, and permission checks rightly stop a session that widens its own authority. One command keeps it to one step, not a wall of approvals.
+
 ## 1. Read what exists
 
-Run `charter.py --check`. If a config exists, show it and the local-rules file it points to, and ask what the user wants to change; don't start over. If a file is a symlink, the user keeps it somewhere deliberate (often a dotfiles repo): write to the target, never replace the link.
+Run `charter.py --check`. If a config exists, show it and the local-rules file it points to, and ask what the user wants to change; don't start over. Copy the existing files into the draft directory and edit the copies. A file that is a symlink is kept somewhere deliberate (often a dotfiles repo); `--install` writes through the link, so leave that to it.
 
 ## 2. The basics
 
@@ -51,18 +53,37 @@ For example, "Work is tracked in Jira through `acli`; never pick a project witho
 
 For each step the user wants, ask whether a session may do it **without asking**, and set the matching authority-matrix row to agree. A closing step and the matrix must never contradict each other.
 
+Write each command a session may run without asking as **one plain command**, never chained with `&&` or `;` (for example `git -C <repo> commit …` and `git -C <repo> push` as separate lines). Step 6 turns these into permission rules, and a rule matches one command.
+
 ## 4. The authority matrix
 
-Offer to fork the bundled `authority-matrix.md` to `~/.config/bosmang/authority-matrix.md`; recommend it, since the rows are where the user's own rules belong. Fold in what step 3 settled, such as ticket transitions and worktree removal. Then walk through the remaining "Ask" rows. Change only what the user says to change.
+Offer to fork the bundled `authority-matrix.md` into the draft (it installs to `~/.config/bosmang/authority-matrix.md`); recommend it, since the rows are where the user's own rules belong. Fold in what step 3 settled, such as ticket transitions and worktree removal. Then walk through the remaining "Ask" rows. Change only what the user says to change.
 
-## 5. Write and validate
+## 5. Install
 
-Write `config.json` with only the keys chosen, since the defaults cover the rest. Then:
+Write `config.json` into the draft with only the keys chosen, since the defaults cover the rest. Every path in it is the file's **final** path (`~/.config/bosmang/local-rules.md`), not the draft's. Never put a path into the plugin's install directory in any file: it contains the version number and breaks on the next update. Refer to a script as "`charter.py`, beside the ledger command in the standing orders" instead.
 
-- Run `charter.py --check`. It must report `ok`; fix it and run it again until it does. If it notes that the injected text is over budget, move commands, templates and routines out of the local rules into the procedures file.
-- Run `charter.py --print` and show the user the roles section, the authority table and their local rules, as their sessions will see them.
+Then show the user, in one message:
+- the roles section, the authority table and their local rules, as their sessions will see them (`BOSMANG_CONFIG=<draft>/config.json charter.py --print` renders the draft);
+- every matrix row that lets a session act **without asking**, marked, since those widen what sessions may do;
+- the one command that installs it all, for them to run with the `!` prefix:
 
-## 6. Retire what conflicts
+  ```
+  ! python3 "<scripts>/charter.py" --install <draft>
+  ```
+
+`--install` refuses a draft with problems and installs nothing; fix the draft and give them the command again. It backs up anything it replaces, writes through symlinks, and finishes with `--check`. If that notes the injected text is over budget, move commands, templates and routines from the local rules into the procedures, and install again.
+
+## 6. Permissions for what sessions do without asking
+
+A row that says "Yes" is not enough on its own: Claude Code's permission prompts, and auto mode's checks, still stop a command no setting allows. Closing steps are where this bites, such as committing and pushing a log entry, so a setup that leaves them out makes every close stop for approval or be refused.
+
+For each command a procedure runs without asking, give the user the rule that allows it, and tell them:
+- the rules go in their **global** settings, `~/.claude/settings.json`, under `permissions.allow`. If the file doesn't exist, they create it with `{"permissions": {"allow": [ … ]}}`;
+- each rule names one command narrowly, such as `Bash(git -C /path/to/journal-repo push:*)`. Auto mode honours narrow rules before its own checks, but sends broad ones such as `Bash(git:*)` through them anyway;
+- these are theirs to add, in their editor or with `/permissions`. A session adding rules that widen its own permissions is what auto mode exists to stop.
+
+## 7. Retire what conflicts
 
 Older rules and skills that contradict the orders will win, because they're more specific and are loaded right when the work happens. Search all of these:
 
@@ -77,7 +98,7 @@ Look for anything that:
 
 List each finding with its file and line, and propose one of: delete it, move it into the local rules or the procedures (a skill's closing ritual usually becomes Closing steps), or leave it and change the matrix to match. Change nothing until the user says. If open handoffs live only in a running session's context, have that session record them with `ledger.py handoff add` before anything is restarted or retired.
 
-## 7. Close down the old crew
+## 8. Close down the old crew
 
 Sessions started before this run have old rules in context and no standing orders, so init closes them down before the coordinator starts. Nothing a session knows may be lost on the way.
 
@@ -92,14 +113,14 @@ Sessions started before this run have old rules in context and no standing order
    - Interactive: these can't be stopped from here. Ask the user to `/exit` each one, and wait until `claude agents --json` no longer lists it. Never kill a process.
    - Older sessions have no SessionEnd hook, so mark each one's lead as ended yourself: pipe `{"session_id": "<sessionId>", "cwd": "<cwd>", "reason": "other"}` into `ledger.py session-end-hook`. The ledger then shows its scope as orphaned rather than live.
 
-## 8. Start the coordinator
+## 9. Start the coordinator
 
 From the directory chosen in step 2, run `claude --bg --agent bosmang:coordinator -n <coordinator name> "Run the ledger list and report what is open."`. `--agent` applies only when a session is created, which is why the coordinator is always a new session. If it refuses with "Workspace not trusted", ask the user to run `claude` in that directory once and accept the prompt, then try again.
 
 Record it, so `/bosmang:resume` can bring the same session back: take its `sessionId` from `claude agents --json`, then run `ledger.py coordinator set --name <coordinator name> --session-id <sessionId> --cwd <directory>`.
 
-## 9. Bring the crew back
+## 10. Bring the crew back
 
-Run `/bosmang:resume`. It finds the coordinator running and offers to resume the leads stopped in step 7. Then tell the user:
+Run `/bosmang:resume`. It finds the coordinator running and offers to resume the leads stopped in step 8. Then tell the user:
 - `claude attach <coordinator name>` opens the coordinator; `claude agents` shows every session.
 - `/bosmang:resume` brings the crew back after any restart; `/bosmang:lead <SCOPE>` starts new work; `/bosmang:close` finishes it.

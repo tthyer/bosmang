@@ -24,12 +24,18 @@ full rather than silently previewed.
 --print writes the rendered orders as plain text instead of hook JSON (one --part, or all).
 --procedures prints the procedures files, for skills that need them.
 --check reports where the config was read from and every problem with it, and exits 1 if any.
+--install DIR moves a drafted config into place. /bosmang:init drafts every file in DIR and
+the user runs this one command, so changing the standing orders is the user's own single step
+rather than a string of approvals. Nothing is installed unless the draft validates; a file
+that is a symlink is written through, and anything replaced is backed up first.
 """
 
 import json
 import os
 import shlex
+import shutil
 import sys
+from datetime import datetime
 from pathlib import Path
 from string import Template
 
@@ -101,6 +107,55 @@ def check():
     return 1 if found else 0
 
 
+def drafted(config, draft):
+    """The config with every path that names a drafted file pointed at the draft instead,
+    so it can be validated before anything is installed."""
+    names = {f.name for f in draft.iterdir() if f.is_file()}
+
+    def swap(p):
+        return str(draft / Path(p).name) if Path(p).name in names else p
+
+    config = dict(config)
+    if config.get("authority_matrix"):
+        config["authority_matrix"] = swap(config["authority_matrix"])
+    for key in ("append", "procedures"):
+        if key in config:
+            config[key] = [swap(p) for p in config[key]]
+    return config
+
+
+def install(draft):
+    draft = Path(draft).expanduser().resolve()
+    try:
+        config = json.loads((draft / "config.json").read_text())
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"{draft / 'config.json'}: {e}")
+        return 1
+    found = problems(drafted(config, draft))
+    if found:
+        print("not installed; the draft has problems:")
+        for p in found:
+            print(f"  problem: {p}")
+        return 1
+    home = config_path().parent
+    backup = home / f"backup-{datetime.now():%Y%m%d-%H%M%S}"
+    for source in sorted(f for f in draft.iterdir() if f.is_file()):
+        dest = home / source.name
+        target = dest.resolve() if dest.is_symlink() else dest
+        if target.exists() and target.read_bytes() == source.read_bytes():
+            print(f"  unchanged  {dest}")
+            continue
+        if target.exists():
+            backup.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(target, backup / source.name)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+        print(f"  {'replaced' if (backup / source.name).exists() else 'new':<9}  {dest}" + (f" -> {target}" if target != dest else ""))
+    if backup.exists():
+        print(f"  backup of what was replaced: {backup}")
+    return check()
+
+
 def read(path):
     return Path(path).expanduser().read_text().strip()
 
@@ -140,6 +195,8 @@ def hook_text(part, text):
 
 
 def main():
+    if "--install" in sys.argv:
+        sys.exit(install(sys.argv[sys.argv.index("--install") + 1]))
     if "--check" in sys.argv:
         sys.exit(check())
     if "--procedures" in sys.argv:
