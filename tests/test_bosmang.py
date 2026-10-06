@@ -254,6 +254,25 @@ class CharterTest(unittest.TestCase):
             self.assertIn("not installed", run.stdout)
             self.assertFalse(home.exists())
 
+    def test_survey_reports_sign_in_by_exit_code_only(self):
+        with tempfile.TemporaryDirectory() as d:
+            bin_dir = Path(d)
+            # a fake gh whose status output carries a secret-looking line, signed in
+            (bin_dir / "gh").write_text("#!/bin/sh\necho 'Token: gho_SECRET'\nexit 0\n")
+            (bin_dir / "acli").write_text("#!/bin/sh\nexit 1\n")
+            for f in bin_dir.iterdir():
+                f.chmod(0o755)
+            run = subprocess.run(
+                [sys.executable, str(SCRIPTS / "survey.py")], capture_output=True, text=True, cwd=d,
+                env=dict(os.environ, PATH=f"{bin_dir}:/usr/bin:/bin", BOSMANG_CONFIG=str(bin_dir / "none.json"),
+                         BOSMANG_LEDGER_DIR=str(bin_dir / "ledger")),
+            )
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertNotIn("SECRET", run.stdout)
+        tools = json.loads(next(l for l in run.stdout.splitlines() if l.startswith("tools: "))[7:])
+        self.assertEqual(tools["gh"], "signed in")
+        self.assertEqual(tools["acli"], "installed, not signed in")
+
     def test_an_oversized_part_becomes_a_pointer_not_a_preview(self):
         self.assertEqual(charter.hook_text("local", "short"), "short")
         text = charter.hook_text("local", "x" * charter.HOOK_LIMIT)

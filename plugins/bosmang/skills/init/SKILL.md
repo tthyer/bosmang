@@ -9,13 +9,17 @@ Run every script below with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/<script>"`. 
 
 **Ask with the `AskUserQuestion` tool, not in chat.** One call is one short form: up to four questions, each with two to four options, and the user can always type their own answer instead. Put the recommended option first, with "(Recommended)" at the end of its label, and use `multiSelect` where several answers can apply. Ask one topic per form, in this order: the basics, the tracker, version control, closing steps, the matrix. Ask follow-ups in the next form, never mixed into this one.
 
-Before a form, check what's already installed and signed in, so options say what you found ("Jira, through `acli` (signed in)"). Use plain chat only for a question with no sensible options (how the user would like to be addressed) and for showing things: the rendered orders, the conflicts, the install command.
+**Keep the checks out of the user's way.** The user watches this session's terminal, so every check is noise in it. Learn what you need from one `survey.py` call (step 1), and let options say what it found ("Jira, through `acli` (signed in)"). Run any further check only when an answer needs it, as one quiet command, and never dump its output: say what it showed in a line. Use plain chat only for a question with no sensible options (how the user would like to be addressed) and for showing things: the rendered orders, the conflicts, the install command.
 
 **Never write the user's config yourself.** Draft every file in a directory you can write without prompting (your scratchpad if the session lists one, otherwise one from `mktemp -d`), and in step 5 the user installs the whole draft with one command. The standing orders say what every session may do without asking, so changing them is the user's step, and permission checks rightly stop a session that widens its own authority. One command keeps it to one step, not a wall of approvals.
 
 ## 1. Read what exists
 
-Run `charter.py --check`. If a config exists, show it and the local-rules file it points to, and ask what the user wants to change; don't start over. Copy the existing files into the draft directory and edit the copies. A file that is a symlink is kept somewhere deliberate (often a dotfiles repo); `--install` writes through the link, so leave that to it.
+Run `survey.py` once. It prints a few lines: the existing config and its problems, which tracker and version-control tools are installed and signed in, where the current repo is hosted, the running sessions, the ledger, and whether `~/.claude/settings.json` exists. Use these for the rest of init rather than checking again.
+
+Then start the conflict search (step 7) **in the background** now, so it runs while the user answers: spawn one subagent (the read-only Explore type if you have it) with step 7's list of places and patterns, and an instruction to return only findings, each with its file and line. The matrix isn't settled yet, so it lists every action a skill or rule takes **without asking** (pushes, merges, ticket transitions, worktree removal, production writes, posting to people) and every one it always asks about; step 7 compares them with the matrix.
+
+If a config exists, show it and the local-rules file it points to, and ask what the user wants to change; don't start over. Copy the existing files into the draft directory and edit the copies. A file that is a symlink is kept somewhere deliberate (often a dotfiles repo); `--install` writes through the link, so leave that to it.
 
 ## 2. The basics
 
@@ -88,7 +92,7 @@ For each command a procedure runs without asking, give the user the rule that al
 
 ## 7. Retire what conflicts
 
-Older rules and skills that contradict the orders will win, because they're more specific and are loaded right when the work happens. Search all of these:
+Older rules and skills that contradict the orders will win, because they're more specific and are loaded right when the work happens. The background search from step 1 covers this; if it hasn't reported yet, wait for it rather than searching again here. It searched all of these:
 
 - **Instructions:** the global `CLAUDE.md` and every file it imports, plus any `CLAUDE.md` or `CLAUDE.local.md` in the current repo and its `.claude/rules/`.
 - **Memory:** the memory directory for this project.
@@ -99,7 +103,7 @@ Look for anything that:
 - closes, wraps up or hands off a thread;
 - **acts where the matrix says "Ask"**, or asks where the matrix says "Yes". Check for pushes, merges, ticket transitions, worktree removal, production writes and posting to people.
 
-List each finding with its file and line, and propose one of: delete it, move it into the local rules or the procedures (a skill's closing ritual usually becomes Closing steps), or leave it and change the matrix to match. Change nothing until the user says. If open handoffs live only in a running session's context, have that session record them with `ledger.py handoff add` before anything is restarted or retired.
+Compare its findings with the matrix as now decided, then list each conflict with its file and line, and propose one of: delete it, move it into the local rules or the procedures (a skill's closing ritual usually becomes Closing steps), or leave it and change the matrix to match. Change nothing until the user says. If open handoffs live only in a running session's context, have that session record them with `ledger.py handoff add` before anything is restarted or retired.
 
 ## 8. Close down the old crew
 
