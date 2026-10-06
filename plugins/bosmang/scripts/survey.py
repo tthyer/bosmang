@@ -2,9 +2,13 @@
 """What /bosmang:init needs to know before its first question, in one call and a few lines.
 
 Checks the existing config, which tracker and version-control tools are installed and
-signed in, where the current repo is hosted, the running sessions and the ledger, and
-prints one line per finding. Only exit codes are read from the sign-in checks, never their
-output, so no account detail or token reaches the session.
+signed in, whether git has an identity to commit with, where the current repo is hosted,
+the user's forge handle and the repos they've recently merged PRs into, the running
+sessions and the ledger, and prints one line per finding. A fresh machine shows up as
+missing tools and no identity, which init then offers to fix.
+
+Sign-in checks read only exit codes, never output, so no account detail or token reaches
+the session. Of git's identity, only whether it is set is reported.
 """
 
 import importlib.util
@@ -12,6 +16,8 @@ import json
 import shutil
 import subprocess
 import sys
+from collections import Counter
+from datetime import date, timedelta
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -43,10 +49,18 @@ def run(cmd, timeout=10):
         return None, ""
 
 
+# reported even when missing, since a fresh machine needs them before anything else
+ESSENTIAL = {"git", "gh"}
+PACKAGE_MANAGERS = ("brew", "apt-get", "dnf", "pacman", "winget")
+RECENT_DAYS = 90
+
+
 def tools():
     found = {}
     for tool, auth in TOOLS.items():
         if not shutil.which(tool):
+            if tool in ESSENTIAL:
+                found[tool] = "missing"
             continue
         if auth is None:
             found[tool] = "installed"
@@ -63,6 +77,38 @@ def repo_host():
     # git@github.com:org/repo.git or https://github.com/org/repo
     host = url.split("@", 1)[-1].split("://", 1)[-1]
     return host.split(":", 1)[0].split("/", 1)[0]
+
+
+def git_identity():
+    return {key: run(["git", "config", "--global", "--get", f"user.{key}"])[0] == 0 for key in ("name", "email")}
+
+
+def forge_user(found):
+    """The signed-in handle, so it never has to be typed (and mistyped). None if not signed in."""
+    if found.get("gh") == "signed in":
+        code, out = run(["gh", "api", "user", "--jq", ".login"])
+        return {"github": out} if code == 0 and out else None
+    if found.get("glab") == "signed in":
+        code, out = run(["glab", "api", "user"])
+        try:
+            return {"gitlab": json.loads(out)["username"]} if code == 0 else None
+        except (json.JSONDecodeError, KeyError):
+            return None
+    return None
+
+
+def recent_repos(found):
+    """Repos the user merged PRs into lately, most first: the candidates for which repos they work in."""
+    if found.get("gh") != "signed in":
+        return None
+    since = (date.today() - timedelta(days=RECENT_DAYS)).isoformat()
+    code, out = run(["gh", "search", "prs", "--author", "@me", "--merged", "--merged-at", f">{since}",
+                     "--limit", "100", "--json", "repository"], timeout=30)
+    try:
+        repos = Counter(pr["repository"]["nameWithOwner"] for pr in json.loads(out)) if code == 0 else None
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None
+    return [f"{repo} ({n})" for repo, n in repos.most_common(8)] if repos is not None else None
 
 
 def sessions():
@@ -96,10 +142,15 @@ def config():
 def main():
     ledger = load("ledger")
     settings = Path.home() / ".claude" / "settings.json"
+    found = tools()
     survey = {
         "config": config(),
-        "tools": tools(),
+        "tools": found,
+        "package_manager": next((pm for pm in PACKAGE_MANAGERS if shutil.which(pm)), None),
+        "git_identity_set": git_identity() if found.get("git") != "missing" else None,
         "repo_host": repo_host(),
+        "forge_user": forge_user(found),
+        f"merged_pr_repos_last_{RECENT_DAYS}_days": recent_repos(found),
         "sessions": sessions(),
         "ledger": {"dir": str(ledger.ledger_dir()), "exists": ledger.ledger_dir().exists()},
         "global_settings": {"exists": settings.exists(), "symlink": settings.is_symlink()},

@@ -258,7 +258,15 @@ class CharterTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             bin_dir = Path(d)
             # a fake gh whose status output carries a secret-looking line, signed in
-            (bin_dir / "gh").write_text("#!/bin/sh\necho 'Token: gho_SECRET'\nexit 0\n")
+            (bin_dir / "gh").write_text(
+                "#!/bin/sh\n"
+                'case "$1 $2" in\n'
+                "  'auth status') echo 'Token: gho_SECRET'; exit 0;;\n"
+                "  'api user') echo octo;;\n"
+                "  'search prs') echo '[{\"repository\":{\"nameWithOwner\":\"o/a\"}},"
+                "{\"repository\":{\"nameWithOwner\":\"o/b\"}},{\"repository\":{\"nameWithOwner\":\"o/a\"}}]';;\n"
+                "esac\n"
+            )
             (bin_dir / "acli").write_text("#!/bin/sh\nexit 1\n")
             for f in bin_dir.iterdir():
                 f.chmod(0o755)
@@ -272,6 +280,9 @@ class CharterTest(unittest.TestCase):
         tools = json.loads(next(l for l in run.stdout.splitlines() if l.startswith("tools: "))[7:])
         self.assertEqual(tools["gh"], "signed in")
         self.assertEqual(tools["acli"], "installed, not signed in")
+        lines = dict(l.split(": ", 1) for l in run.stdout.splitlines())
+        self.assertEqual(json.loads(lines["forge_user"]), {"github": "octo"})
+        self.assertEqual(json.loads(lines["merged_pr_repos_last_90_days"]), ["o/a (2)", "o/b (1)"])
 
     def test_an_oversized_part_becomes_a_pointer_not_a_preview(self):
         self.assertEqual(charter.hook_text("local", "short"), "short")

@@ -15,7 +15,14 @@ Run every script below with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/<script>"`. 
 
 ## 1. Read what exists
 
-Run `survey.py` once. It prints a few lines: the existing config and its problems, which tracker and version-control tools are installed and signed in, where the current repo is hosted, the running sessions, the ledger, and whether `~/.claude/settings.json` exists. Use these for the rest of init rather than checking again.
+Run `survey.py` once. It prints a few lines: the existing config and its problems; which tracker and version-control tools are installed and signed in (`git` and `gh` show as "missing" when absent); the package manager; whether git has a name and email to commit with; where the current repo is hosted; the signed-in forge handle; the repos the user has merged PRs into lately; the running sessions; the ledger; and whether `~/.claude/settings.json` exists. Use these for the rest of init rather than checking again.
+
+**A fresh machine.** If the survey shows gaps, fix them first, since later steps depend on them. Offer each fix as a form choice, "Set it up now (Recommended)" or "Skip", and give the commands for the user to run with `!`, because sign-in is interactive and installs are theirs to approve:
+- **Missing tools:** the install command for the package manager the survey found, such as `! brew install gh`. Without a package manager, link the tool's install page.
+- **Not signed in:** `! gh auth login`, `! acli jira auth login`, or the tracker CLI's equivalent.
+- **No git identity:** `! git config --global user.name "…"` and `! git config --global user.email "…"`, with the values the user gives. Without them every commit fails, the work log's included.
+
+Then run `survey.py` again, and carry on. A tool the user skips is left out: with no tracker CLI, the ledger tracks the work.
 
 Then start the conflict search (step 7) **in the background** now, so it runs while the user answers: spawn one subagent (the read-only Explore type if you have it) with step 7's list of places and patterns, and an instruction to return only findings, each with its file and line. The matrix isn't settled yet, so it lists every action a skill or rule takes **without asking** (pushes, merges, ticket transitions, worktree removal, production writes, posting to people) and every one it always asks about; step 7 compares them with the matrix.
 
@@ -49,6 +56,8 @@ For example, "Work is tracked in Jira through `acli`; never pick a project witho
 - Recommend **git**. If they host on GitHub, recommend **`gh`** for PRs, checks and reviews; check `gh auth status`. For another host, ask for its CLI (for example `glab`).
 - Ask how they make a working copy for parallel work: `git worktree`, a wrapper such as worktrunk (`wt`), or separate clones. Record the exact creation command; one session per worktree avoids sessions editing the same checkout.
 - Ask whether PRs open as drafts, and how branches are named.
+- **Never ask for the user's handle.** Write procedure commands with `@me` (`gh pr list --author @me`, `gh search prs --author @me`), which `gh` resolves to whoever is signed in. If a command needs the handle itself, take it from the survey's `forge_user`.
+- **Which repos they work in.** Offer the survey's merged-PR repos in a `multiSelect` form, the busiest first and marked "(Recommended)"; the user types any others. Record them in the Version control procedure: `/bosmang:board` reconciles merged PRs in these repos.
 - Put the tools and conventions in the local rules, and the exact commands in a **Version control** procedure.
 
 **Closing steps: "When a piece of work closes, what else should happen?"** `/bosmang:close` already checks live state, sums up, records handoffs and reports `[DONE]`. These steps come after it, and go in a **Closing steps** procedure. Offer the usual ones:

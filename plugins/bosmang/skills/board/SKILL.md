@@ -25,7 +25,7 @@ Keep it to one short table plus findings. Print an item's background only when a
 ## Refresh
 
 1. Run the **Board** procedure's refresh steps, in its order. A dashboard that publishes to a fixed address keeps that address: publish to it, never to a new one.
-2. **Reconcile merged work against the tracker.** List PRs merged since the last refresh, take their item keys, and check each item's status in one query. An item whose PR merged but which isn't Done is stale. Moving it follows the authority matrix: if the matrix says "Ask", gather them into one question ("PRs for X and Y merged; move them to Done?"). A merge doesn't always finish an item: check what the item asks for against what the PR changed, and treat several PRs against one item as work in progress. Leave other people's items alone.
+2. **Reconcile merged work against the tracker.** List PRs merged since the last refresh in the repos the Version control procedure names, take their item keys, and check each item's status in one query. An item whose PR merged but which isn't Done is stale. Moving it follows the authority matrix: if the matrix says "Ask", gather them into one question ("PRs for X and Y merged; move them to Done?"). A merge doesn't always finish an item: check what the item asks for against what the PR changed, and treat several PRs against one item as work in progress. Leave other people's items alone.
 3. **Check the work log**, if the closing steps keep one. Name the closed threads without an entry. A session that is still running writes its own entry: message it rather than writing one for it.
 
 ## Never
