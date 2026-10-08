@@ -205,7 +205,7 @@ class SessionHookTest(LedgerCase):
         self.assertEqual(self.lead()["event"], "resumed")
 
     def test_another_session_in_the_worktree_does_not_take_an_orphaned_lead(self):
-        # The reclaimed-lead case: a visitor took the orphaned lead, then its exit orphaned it
+        # Seen in real use: a visitor took the orphaned lead, then its exit orphaned it
         # again while the lead's own session was running elsewhere.
         self.open_lead("--session-id", "LEAD")
         self.end("LEAD", reason="prompt_input_exit")

@@ -91,6 +91,10 @@ bosmang is smaller than these, and differs in three ways:
 - Its coordinator is explicitly not a gate. It tracks, routes and settles disputes between scopes, and approves nothing.
 - A written authority matrix, which you fork, decides what interrupts you. It is keyed by role and by action (merge, post to people, write to production), not by tool, and `[NEEDS-HUMAN]` must cite one of its rows. Leads hold their scopes across restarts until you close them.
 
+## Changes and contributing
+
+See [CHANGELOG.md](CHANGELOG.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Tests
 
 ```bash
