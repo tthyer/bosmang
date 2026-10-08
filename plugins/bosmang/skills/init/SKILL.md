@@ -79,7 +79,7 @@ Offer to fork the bundled `authority-matrix.md` into the draft (it installs to `
 Write `config.json` into the draft with only the keys chosen, since the defaults cover the rest. Every path in it is the file's **final** path (`~/.config/bosmang/local-rules.md`), not the draft's. Never put a path into the plugin's install directory in any file: it contains the version number and breaks on the next update. Refer to a script as "`charter.py`, beside the ledger command in the standing orders" instead.
 
 Then show the user, in one message:
-- the roles section, the authority table and their local rules, as their sessions will see them (`BOSMANG_CONFIG=<draft>/config.json charter.py --print` renders the draft);
+- the roles section, the authority table and their local rules, as their sessions will see them (`charter.py --draft <draft>` renders the draft with its own files, exactly as `--install` would install it);
 - every matrix row that lets a session act **without asking**, marked, since those widen what sessions may do;
 - the one command that installs it all, for them to run with the `!` prefix:
 

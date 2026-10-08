@@ -66,6 +66,22 @@ class LedgerTest(LedgerCase):
         self.run_ledger("handoff", "close", late["id"], "--note", "done")
         self.assertEqual([h["item"] for h in self.state()["handoffs"]], ["sooner"])
 
+    def test_handoff_ids_never_repeat(self):
+        first = json.loads(self.run_ledger("handoff", "add", "--item", "same", "--from", "a"))
+        with mock.patch.object(ledger.secrets, "token_hex", side_effect=[first["id"], "beef01"]):
+            second = json.loads(self.run_ledger("handoff", "add", "--item", "same", "--from", "b"))
+        self.assertEqual(second["id"], "beef01")
+        self.assertEqual(len(self.state()["handoffs"]), 2)
+
+    def test_changes_wait_for_the_write_lock(self):
+        added = json.loads(self.run_ledger("handoff", "add", "--item", "x", "--from", "a"))
+        with ledger.exclusive():
+            close = subprocess.Popen([sys.executable, str(SCRIPTS / "ledger.py"), "handoff", "close", added["id"]])
+            with self.assertRaises(subprocess.TimeoutExpired):
+                close.wait(timeout=0.5)
+        self.assertEqual(close.wait(timeout=5), 0)
+        self.assertEqual(self.state()["handoffs"], [])
+
     def test_handoff_update_keeps_its_id(self):
         added = json.loads(self.run_ledger("handoff", "add", "--item", "draft", "--from", "a"))
         self.run_ledger("handoff", "update", added["id"], "--item", "revised", "--due", "2026-11-01", "--note", "scope grew")
@@ -162,10 +178,17 @@ class SessionHookTest(LedgerCase):
         self.end("VISITOR", cwd=str(Path(self.worktree.name) / "src"))
         self.assertEqual(self.lead()["event"], "open")
 
-    def test_clear_is_ignored(self):
+    def test_clear_does_not_orphan_the_lead(self):
         self.open_lead("--session-id", "LEAD")
         self.end("LEAD", reason="clear")
-        self.assertEqual(self.lead()["event"], "open")
+        self.assertEqual(self.lead()["event"], "cleared")
+        self.assertNotIn("ORPHANED", self.run_ledger("list"))
+
+    def test_a_visitor_clearing_in_the_worktree_does_not_take_a_live_lead(self):
+        self.open_lead("--session-id", "LEAD")
+        self.end("VISITOR", reason="clear")
+        self.hook("session-start-hook", {"session_id": "VISITOR-2", "cwd": self.worktree.name, "source": "clear"})
+        self.assertEqual((self.lead()["event"], self.lead()["session_id"]), ("open", "LEAD"))
 
     def test_resume_takes_an_orphaned_lead_back(self):
         self.open_lead("--session-id", "LEAD")
@@ -283,6 +306,45 @@ class CharterTest(unittest.TestCase):
             self.assertEqual(json.loads(real.read_text())["owner"], "Ada")
             backups = list(home.glob("backup-*/local-rules.md"))
             self.assertEqual([b.read_text() for b in backups], ["- old rule"])
+
+    def test_install_writes_each_file_to_its_configured_path(self):
+        with tempfile.TemporaryDirectory() as d:
+            draft, home, notes = Path(d, "draft"), Path(d, "home"), Path(d, "notes")
+            draft.mkdir()
+            notes.mkdir()
+            (notes / "local-rules.md").write_text("- old rule")
+            (draft / "local-rules.md").write_text("- new rule")
+            (draft / "config.json").write_text(json.dumps({"append": [str(notes / "local-rules.md")]}))
+            config = home / "crew.json"  # a custom $BOSMANG_CONFIG name
+            run = subprocess.run([sys.executable, str(SCRIPTS / "charter.py"), "--install", str(draft)],
+                                 capture_output=True, text=True, env=dict(os.environ, BOSMANG_CONFIG=str(config)))
+            self.assertEqual(run.returncode, 0, run.stdout)
+            self.assertEqual((notes / "local-rules.md").read_text(), "- new rule")
+            self.assertEqual(json.loads(config.read_text())["append"], [str(notes / "local-rules.md")])
+            self.assertEqual(sorted(f.name for f in home.iterdir() if f.is_file()), ["crew.json"])
+
+    def test_install_refuses_a_file_the_config_does_not_name(self):
+        with tempfile.TemporaryDirectory() as d:
+            draft, home = Path(d, "draft"), Path(d, "home")
+            draft.mkdir()
+            (draft / "stray.md").write_text("- unused")
+            (draft / "config.json").write_text(json.dumps({"owner": "Ada"}))
+            run = self.install(draft, home)
+            self.assertEqual(run.returncode, 1)
+            self.assertIn("stray.md", run.stdout)
+            self.assertFalse(home.exists())
+
+    def test_draft_preview_shows_the_draft_not_the_installed_rules(self):
+        with tempfile.TemporaryDirectory() as d:
+            draft, home = Path(d, "draft"), Path(d, "home")
+            draft.mkdir()
+            (draft / "local-rules.md").write_text("- DRAFTED-RULE")
+            (draft / "config.json").write_text(json.dumps({"owner": "Ada", "append": [str(home / "local-rules.md")]}))
+            run = subprocess.run([sys.executable, str(SCRIPTS / "charter.py"), "--draft", str(draft)],
+                                 capture_output=True, text=True, env=dict(os.environ, BOSMANG_CONFIG=str(home / "config.json")))
+            self.assertEqual(run.returncode, 0, run.stderr)
+            self.assertIn("DRAFTED-RULE", run.stdout)
+            self.assertIn("working for Ada", run.stdout)
 
     def test_install_refuses_an_invalid_draft(self):
         with tempfile.TemporaryDirectory() as d:

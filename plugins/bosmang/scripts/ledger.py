@@ -12,9 +12,9 @@ with $BOSMANG_LEDGER_DIR.
 
 import argparse
 import fcntl
-import hashlib
 import json
 import os
+import secrets
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -36,6 +36,16 @@ def ledger_dir():
 
 def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def exclusive():
+    """Hold the ledger's write lock. Every command that changes the ledger runs under it,
+    so the state a command checks is still the state when its event lands."""
+    directory = ledger_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    f = open(directory / ".lock", "a")
+    fcntl.flock(f, fcntl.LOCK_EX)
+    return f
 
 
 def append(name, event):
@@ -106,13 +116,11 @@ def lead_ended(session_id, cwd, reason):
     for lead in open_items("leads.jsonl", "scope"):
         mine = lead.get("session_id") == session_id if lead.get("session_id") else lead in leads_in(cwd)
         if mine and lead["event"] != "ended":
-            ended.append(append("leads.jsonl", {"ts": now(), "event": "ended", "scope": lead["scope"], "reason": reason}))
+            # /clear ends the conversation, not the terminal's hold on its scope: the
+            # session that replaces it takes a "cleared" lead over in session_start_hook.
+            event = "cleared" if reason == "clear" else "ended"
+            ended.append(append("leads.jsonl", {"ts": now(), "event": event, "scope": lead["scope"], "reason": reason}))
     return ended
-
-
-# /clear ends the conversation, not the terminal's hold on its scope; the session that
-# replaces it takes the lead over in session_start_hook.
-IGNORED_END_REASONS = {"clear"}
 
 
 def session_start_hook(args):
@@ -131,8 +139,8 @@ def session_start_hook(args):
                 # A lead recorded without a session ID can only be matched by its worktree.
                 mine = lead.get("session_id") == session_id if lead.get("session_id") else lead["scope"] in here
             else:
-                # After /clear, the new session in this worktree inherits a live lead from the old one.
-                mine = source == "clear" and lead["scope"] in here and lead.get("session_id") != session_id
+                # After the lead's own session runs /clear, its replacement in this worktree inherits it.
+                mine = source == "clear" and lead["event"] == "cleared" and lead["scope"] in here
             if mine:
                 event = {"ts": now(), "event": "resumed", "scope": lead["scope"]}
                 if session_id:
@@ -147,8 +155,7 @@ def session_end_hook(args):
     """SessionEnd hook entry: reads the hook's JSON on stdin. Never fails the session's exit."""
     try:
         payload = json.load(sys.stdin)
-        if payload.get("reason") not in IGNORED_END_REASONS:
-            lead_ended(payload.get("session_id"), payload.get("cwd", "."), payload.get("reason", "other"))
+        lead_ended(payload.get("session_id"), payload.get("cwd", "."), payload.get("reason", "other"))
     except Exception:  # noqa: BLE001 -- a hook must never break exit
         pass
     return None
@@ -173,11 +180,14 @@ def lead_close(args):
 
 
 def handoff_add(args):
-    ts = now()
+    taken = set(fold("handoffs.jsonl", "id"))
+    handoff_id = secrets.token_hex(3)
+    while handoff_id in taken:
+        handoff_id = secrets.token_hex(3)
     event = {
-        "ts": ts,
+        "ts": now(),
         "event": "open",
-        "id": hashlib.sha1(f"{ts}{args.item}".encode()).hexdigest()[:6],
+        "id": handoff_id,
         "item": args.item,
         "from": args.from_,
     }
@@ -283,7 +293,11 @@ def parser():
 
 def main(argv=None):
     args = parser().parse_args(argv)
-    result = args.fn(args)
+    if args.fn is show:
+        result = show(args)
+    else:
+        with exclusive():
+            result = args.fn(args)
     if result is not None:
         print(json.dumps(result, sort_keys=True))
 

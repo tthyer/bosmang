@@ -22,9 +22,11 @@ entirely. So the orders are injected in parts, each by its own hook call (--part
 full rather than silently previewed.
 
 --print writes the rendered orders as plain text instead of hook JSON (one --part, or all).
+--draft DIR prints the orders a drafted config would give, with the draft's own files.
 --procedures prints the procedures files, for skills that need them.
 --check reports where the config was read from and every problem with it, and exits 1 if any.
---install DIR moves a drafted config into place. /bosmang:init drafts every file in DIR and
+--install DIR moves a drafted config into place: config.json to the config in use, and every
+other file to the path config.json gives for a file of that name. /bosmang:init drafts every file in DIR and
 the user runs this one command, so changing the standing orders is the user's own single step
 rather than a string of approvals. Nothing is installed unless the draft validates; a file
 that is a symlink is written through, and anything replaced is backed up first.
@@ -107,9 +109,34 @@ def check():
     return 1 if found else 0
 
 
+def configured_paths(config):
+    paths = [config["authority_matrix"]] if config.get("authority_matrix") else []
+    return paths + list(config.get("append", [])) + list(config.get("procedures", []))
+
+
+def destinations(config, draft):
+    """Where each drafted file installs, and any problem with that. config.json goes to the
+    config in use; every other file goes to the configured path with its name. Validation,
+    preview and install all use this one mapping, so what is checked is what is installed."""
+    by_name = {}
+    for p in configured_paths(config):
+        by_name.setdefault(Path(p).name, set()).add(Path(p).expanduser())
+    mapping, found = {}, []
+    for source in sorted(f for f in draft.iterdir() if f.is_file()):
+        if source.name == "config.json":
+            mapping[source] = config_path()
+        elif len(by_name.get(source.name, ())) == 1:
+            mapping[source] = next(iter(by_name[source.name]))
+        elif source.name in by_name:
+            found.append(f"{source.name}: config.json names more than one file called that; rename one")
+        else:
+            found.append(f"{source.name}: config.json names no file called that, so it would not be installed")
+    return mapping, found
+
+
 def drafted(config, draft):
     """The config with every path that names a drafted file pointed at the draft instead,
-    so it can be validated before anything is installed."""
+    so it can be validated and previewed before anything is installed."""
     names = {f.name for f in draft.iterdir() if f.is_file()}
 
     def swap(p):
@@ -124,23 +151,28 @@ def drafted(config, draft):
     return config
 
 
-def install(draft):
+def load_draft(draft):
     draft = Path(draft).expanduser().resolve()
     try:
-        config = json.loads((draft / "config.json").read_text())
+        return draft, json.loads((draft / "config.json").read_text())
     except (OSError, json.JSONDecodeError) as e:
         print(f"{draft / 'config.json'}: {e}")
+        return draft, None
+
+
+def install(draft):
+    draft, config = load_draft(draft)
+    if config is None:
         return 1
-    found = problems(drafted(config, draft))
+    mapping, found = destinations(config, draft)
+    found += problems(drafted(config, draft))
     if found:
         print("not installed; the draft has problems:")
         for p in found:
             print(f"  problem: {p}")
         return 1
-    home = config_path().parent
-    backup = home / f"backup-{datetime.now():%Y%m%d-%H%M%S}"
-    for source in sorted(f for f in draft.iterdir() if f.is_file()):
-        dest = home / source.name
+    backup = config_path().parent / f"backup-{datetime.now():%Y%m%d-%H%M%S}"
+    for source, dest in mapping.items():
         target = dest.resolve() if dest.is_symlink() else dest
         if target.exists() and target.read_bytes() == source.read_bytes():
             print(f"  unchanged  {dest}")
@@ -200,6 +232,17 @@ def main():
         sys.exit(install(sys.argv[sys.argv.index("--install") + 1]))
     if "--check" in sys.argv:
         sys.exit(check())
+    if "--draft" in sys.argv:
+        # Preview a draft exactly as --install would validate and install it.
+        draft, config = load_draft(sys.argv[sys.argv.index("--draft") + 1])
+        if config is None:
+            sys.exit(1)
+        config = drafted(config, draft)
+        found = destinations(config, draft)[1] + problems(config)
+        if found:
+            sys.exit("the draft has problems:\n" + "\n".join(f"  problem: {p}" for p in found))
+        sys.stdout.write(render(config).rstrip() + "\n")
+        return
     if "--procedures" in sys.argv:
         config = load_config()
         sys.stdout.write("\n\n".join(read(p) for p in config.get("procedures", [])) + "\n")

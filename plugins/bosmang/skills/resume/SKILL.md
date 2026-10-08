@@ -1,6 +1,6 @@
 ---
 name: resume
-description: Bring the crew back after a restart, a reboot or a night off. Resumes the coordinator session the ledger records, keeping its role and history, then offers to resume every lead whose session ended without closing its scope. Use when the user says "resume the crew", "bring everyone back", "start the coordinator", "bosmang resume" or "/bosmang:resume". /bosmang:init ends by running it.
+description: Bring the crew back after a restart, a reboot or a night off. Resumes the coordinator session the ledger records, keeping its role and history, then offers to resume every lead whose session is gone without closing its scope. Use when the user says "resume the crew", "bring everyone back", "start the coordinator", "bosmang resume" or "/bosmang:resume". /bosmang:init ends by running it.
 ---
 
 # resume
@@ -25,9 +25,13 @@ Run `ledger.py list --json` and `claude agents --json`. A session is running if 
 
   If `claude` can't find the conversation, it was deleted. Then start a new coordinator with the same name, as `/bosmang:init` does (`claude --bg --agent bosmang:coordinator -n <name> …`, from the same directory). Record it with `ledger.py coordinator set --name <name> --session-id <sessionId> --cwd <cwd>`, taking the `sessionId` from `claude agents --json`. Tell the user it's a fresh session: what it knows is what the ledger holds.
 
-## 3. Orphaned leads
+## 3. Leads without a running session
 
-These are the leads the ledger shows as ended but not closed. List each with its scope, session and worktree, then ask once with `AskUserQuestion`: "Resume all (Recommended)", "Let me pick" (then take the scopes in chat), or "None".
+These are the unclosed leads whose session isn't running:
+- every lead the ledger shows as ORPHANED (its session ended);
+- every other lead whose `session_id` isn't in `claude agents --json`. A crash or an abrupt reboot skips the exit hook, so the ledger still shows these leads as live.
+
+List each with its scope, session and worktree, then ask once with `AskUserQuestion`: "Resume all (Recommended)", "Let me pick" (then take the scopes in chat), or "None".
 
 - **With a `session_id`:** `cd <worktree> && claude --bg --resume <session_id> "Resumed by /bosmang:resume. Carry on with your scope."`. The session start hook marks the lead resumed.
 - **Without one, or the conversation is gone:** say so. The user can resume it by name with `claude --resume <session>`, or start a new session in the worktree with `/bosmang:lead <SCOPE>`, which takes the scope over.

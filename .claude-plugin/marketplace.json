@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Standing orders for a crew of long-lived Claude Code sessions",
-    "version": "0.5.5"
+    "version": "0.5.6"
   },
   "plugins": [
     {
