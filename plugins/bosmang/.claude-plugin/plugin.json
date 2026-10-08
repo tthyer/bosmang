@@ -1,9 +1,20 @@
 {
   "name": "bosmang",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "description": "Standing orders for a crew of long-lived Claude Code sessions: a coordinator that tracks but never approves, project leads that own their scope, and an authority matrix that says what anyone may do without asking.",
   "author": {
     "name": "T. Thyer",
     "url": "https://github.com/tthyer"
-  }
+  },
+  "homepage": "https://github.com/tthyer/bosmang",
+  "repository": "https://github.com/tthyer/bosmang",
+  "license": "MIT",
+  "keywords": [
+    "coordination",
+    "multi-session",
+    "agent-teams",
+    "authority-matrix",
+    "handoffs"
+  ],
+  "privacyPolicyUrl": "https://github.com/tthyer/bosmang/blob/main/plugins/bosmang/PRIVACY.md"
 }

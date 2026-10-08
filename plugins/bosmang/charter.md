@@ -41,4 +41,6 @@ If `$coordinator` isn't listed in `ListAgents`, there is no coordinator, so repo
 
 ## The ledger
 
-State that must outlive a session lives in the ledger, not in anyone's context. That means leads, keyed by scope, and handoffs. Record a handoff there, not only in a message. Ending a session never closes a scope: the ledger marks the lead orphaned until a session resumes it or `/bosmang:close` runs. Run `$ledger list` to see the ledger, and `$ledger --help` for the other commands.
+State that must outlive a session lives in the ledger, not in anyone's context. That means leads, keyed by scope, and handoffs. Record a handoff there, not only in a message, and when it changes, `handoff update` it so its ID stays the same. Ending a session never closes a scope: the ledger marks the lead orphaned until a session resumes it or `/bosmang:close` runs. Run `$ledger list` to see the ledger, and `$ledger --help` for the other commands.
+
+The bosmang config, local rules, procedures and authority matrix belong to $owner, since they instruct every session. Never edit them. Draft the change in a new directory, together with a copy of `config.json`, and give $owner `$charter --install <draft>` to run.

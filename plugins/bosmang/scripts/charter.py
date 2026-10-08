@@ -179,6 +179,7 @@ def render_parts(config):
         coordinator=config.get("coordinator", "coordinator"),
         matrix=read(matrix),
         ledger=f"python3 {shlex.quote(str(ledger))}",
+        charter=f"python3 {shlex.quote(str(Path(__file__).resolve()))}",
     )
     return {"orders": text.strip(), "local": "\n\n".join(read(p) for p in config.get("append", []))}
 

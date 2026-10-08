@@ -176,6 +176,16 @@ def handoff_add(args):
     return append("handoffs.jsonl", event)
 
 
+def handoff_update(args):
+    """Change an open handoff in place, so anyone holding its ID still finds it."""
+    if args.id not in {h["id"] for h in open_items("handoffs.jsonl", "id")}:
+        sys.exit(f"no open handoff with id {args.id!r}")
+    changes = {k: v for k, v in (("item", args.item), ("owner", args.owner), ("due", args.due), ("note", args.note)) if v}
+    if not changes:
+        sys.exit("nothing to update: give --item, --owner, --due or --note")
+    return append("handoffs.jsonl", {"ts": now(), "event": "update", "id": args.id, **changes})
+
+
 def handoff_close(args):
     if args.id not in {h["id"] for h in open_items("handoffs.jsonl", "id")}:
         sys.exit(f"no open handoff with id {args.id!r}")
@@ -239,6 +249,13 @@ def parser():
     a.add_argument("--owner")
     a.add_argument("--due", help="YYYY-MM-DD")
     a.set_defaults(fn=handoff_add)
+    hu = handoff.add_parser("update", help="change an open handoff; its ID stays the same")
+    hu.add_argument("id")
+    hu.add_argument("--item")
+    hu.add_argument("--owner")
+    hu.add_argument("--due", help="YYYY-MM-DD")
+    hu.add_argument("--note", help="what changed and why")
+    hu.set_defaults(fn=handoff_update)
     hc = handoff.add_parser("close")
     hc.add_argument("id")
     hc.add_argument("--note")

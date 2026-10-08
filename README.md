@@ -13,6 +13,8 @@ When you run many Claude Code sessions at once, the hard part is not the messagi
 
 *Bosmang* is Belter Creole for "boss", from *The Expanse*. In this crew, the bosmang is you.
 
+**Status: early.** bosmang has been used in one real work setup: Jira through `acli`, git and GitHub through `gh`, worktrees through worktrunk. `/bosmang:init` also handles other trackers, and tracking work in the ledger alone, but neither has been run for real yet. It builds on Claude Code features that are still experimental or in preview: [agent teams](https://code.claude.com/docs/en/agent-teams), [cross-session messaging](https://code.claude.com/docs/en/cross-session-messaging) and [background sessions](https://code.claude.com/docs/en/agent-view). Expect rough edges, and please file what you hit.
+
 ## Design rule: decide, don't do
 
 Everything injected at session start is paid for in every session's context, every time. So bosmang injects only what changes how a session **decides**: the roles, the authority matrix, the message tags, the test for interrupting you, and a few local rules. How to **carry something out** (exact commands, templates, closing routines) goes in a procedures file that skills read only when they run. `charter.py --check` reports what is injected against a 7,000-character budget. Claude Code also shows at most 10,000 characters of any one hook's output in full, and replaces anything longer with a 2KB preview.
@@ -49,6 +51,8 @@ Or do it by hand. Everything is optional. Without config, the orders refer to "t
 - `append` adds short local rules after the orders, such as which tools you use and what never to do. They're injected into every session, so keep them brief.
 - `procedures` holds how-to detail: tracker and version-control commands, and the **Closing steps** that `/bosmang:close` runs. It isn't injected; skills read it with `charter.py --procedures`.
 
+These files are yours. They instruct every session, so sessions never edit them: a session that wants a change drafts it in a new directory, with a copy of `config.json`, and gives you the `charter.py --install <draft>` command to run. In auto mode, Claude Code may also block a session's direct write to them as instruction poisoning.
+
 To validate the config, and to see exactly what your sessions will read:
 
 ```bash
@@ -63,13 +67,29 @@ python3 plugins/bosmang/scripts/charter.py --print
 - **Board:** `/bosmang:board` shows what's in flight: the ledger, the live sessions and, if your procedures say how, your tracker and your own dashboard. `update` refreshes it.
 - **Lead:** in any session, `/bosmang:lead EPIC-123`. This registers the session in the ledger and tells the coordinator.
 - **Close:** `/bosmang:close` checks the work really is closed, sums it up (shipped, verified, unverified), records what's left as handoffs, closes the lead, reports `[DONE]`, then runs your own closing steps from the local rules.
-- **Ledger:** `python3 plugins/bosmang/scripts/ledger.py list`.
+- **Ledger:** `python3 plugins/bosmang/scripts/ledger.py list`. `handoff update <id>` changes a handoff's item, owner or due date without changing its ID.
+
+## The ledger
+
+The ledger is three append-only JSONL files in `ledger_dir`: `leads.jsonl`, `handoffs.jsonl` and `coordinator.jsonl`. Each change is one line, written under a file lock, and the current state is the last line for each key. Nothing is ever rewritten, so the files are also the history.
+
+The default, `~/.local/state/bosmang`, has no backup. For history and backup, point `ledger_dir` at a directory in a git repo; the files diff cleanly. bosmang never commits them itself. Add the commit and push to your **Closing steps** so `/bosmang:close` runs them, and `/bosmang:init` offers to do this.
 
 Stdlib Python only. No venv, no install.
 
 ## Prior art
 
-Claude Code's [agent teams](https://code.claude.com/docs/en/agent-teams) and cross-session messaging provide the transport, and the cross-session docs already say a peer message is never consent. [agent-team](https://github.com/fayerman-source/agent-team) and [claude-team](https://github.com/grgrwlkr/claude-team) arrived independently at "a relay is not approval". [Gas Town](https://github.com/gastownhall/gastown) has a crew hierarchy and a ledger. bosmang adds the layer between: a standing coordinator that is not a gate, a lead tier, and a written authority matrix that decides what interrupts you.
+**Claude Code** supplies the transport: [cross-session messaging](https://code.claude.com/docs/en/cross-session-messaging), [background sessions](https://code.claude.com/docs/en/agent-view) and [agent teams](https://code.claude.com/docs/en/agent-teams). Both messaging docs already say a peer's message is never consent. An agent team has a lead, but the team lasts only as long as the lead's session. [Projects](https://code.claude.com/docs/en/claude-projects) runs a standing coordinator conversation with its own memory, for cloud threads.
+
+**[Gas Town](https://github.com/gastownhall/gastown)** is the fullest precedent. It has a Mayor that coordinates, a Witness supervising each project, a Beads ledger in git, typed mail, escalation to the human routed by severity, and orphan clean-up. It is a standalone system built on tmux, for several agent runtimes.
+
+**[claude-team](https://github.com/grgrwlkr/claude-team)** has typed messages, per-role limits enforced by a hook (only the integrator merges), and handoffs on disk, for the length of one run. **[agent-team](https://github.com/fayerman-source/agent-team)** has a coordinator that acts as the merge gate, and a hook that enforces state reports. Both say a relayed approval is not approval.
+
+bosmang is smaller than these, and differs in three ways:
+
+- It is a Claude Code plugin made of written orders. There is no daemon, no tmux layer and nothing to run beyond Python's standard library.
+- Its coordinator is explicitly not a gate. It tracks, routes and settles disputes between scopes, and approves nothing.
+- A written authority matrix, which you fork, decides what interrupts you. It is keyed by role and by action (merge, post to people, write to production), not by tool, and `[NEEDS-HUMAN]` must cite one of its rows. Leads hold their scopes across restarts until you close them.
 
 ## Tests
 

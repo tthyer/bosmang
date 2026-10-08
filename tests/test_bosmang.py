@@ -66,6 +66,22 @@ class LedgerTest(LedgerCase):
         self.run_ledger("handoff", "close", late["id"], "--note", "done")
         self.assertEqual([h["item"] for h in self.state()["handoffs"]], ["sooner"])
 
+    def test_handoff_update_keeps_its_id(self):
+        added = json.loads(self.run_ledger("handoff", "add", "--item", "draft", "--from", "a"))
+        self.run_ledger("handoff", "update", added["id"], "--item", "revised", "--due", "2026-11-01", "--note", "scope grew")
+        [handoff] = self.state()["handoffs"]
+        self.assertEqual((handoff["id"], handoff["item"], handoff["due"], handoff["from"]), (added["id"], "revised", "2026-11-01", "a"))
+        self.run_ledger("handoff", "close", added["id"])
+        self.assertEqual(self.state()["handoffs"], [])
+
+    def test_handoff_update_refuses_unknown_closed_or_empty(self):
+        added = json.loads(self.run_ledger("handoff", "add", "--item", "x", "--from", "a"))
+        with self.assertRaises(SystemExit):
+            self.run_ledger("handoff", "update", added["id"])
+        self.run_ledger("handoff", "close", added["id"])
+        with self.assertRaises(SystemExit):
+            self.run_ledger("handoff", "update", added["id"], "--item", "y")
+
     def test_history_is_kept(self):
         self.run_ledger("lead", "open", "--scope", "EPIC-1", "--session", "s")
         self.run_ledger("lead", "close", "--scope", "EPIC-1")
@@ -196,6 +212,7 @@ class CharterTest(unittest.TestCase):
             os.unlink(extra.name)
         self.assertIn("working for Ada", text)
         self.assertIn("`nagata`", text)
+        self.assertIn(f"{SCRIPTS / 'charter.py'} --install <draft>", text)
         self.assertTrue(text.rstrip().endswith("Use the tracker."))
 
     def test_problems_flags_bad_keys_and_missing_files(self):
