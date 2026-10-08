@@ -116,15 +116,24 @@ IGNORED_END_REASONS = {"clear"}
 
 
 def session_start_hook(args):
-    """SessionStart hook entry: a session working in an orphaned lead's worktree again
-    (typically a --resume) takes the lead back. Prints nothing; never fails the start."""
+    """SessionStart hook entry: a lead's own session coming back (a --resume keeps its ID)
+    takes its orphaned lead back, from any directory. Prints nothing; never fails the start.
+
+    Another session starting in the worktree takes nothing: it may be a visitor, and if
+    it took the lead, its own exit would orphan the lead while the real lead still ran.
+    A new session takes a scope over with /bosmang:lead."""
     try:
         payload = json.load(sys.stdin)
         session_id, source = payload.get("session_id"), payload.get("source")
-        for lead in leads_in(payload["cwd"]):
-            # An orphaned lead goes to whoever works in its worktree next. After /clear,
-            # the new session in this worktree inherits a live lead from the old one.
-            if lead["event"] == "ended" or (source == "clear" and lead.get("session_id") != session_id):
+        here = {lead["scope"] for lead in leads_in(payload["cwd"])}
+        for lead in open_items("leads.jsonl", "scope"):
+            if lead["event"] == "ended":
+                # A lead recorded without a session ID can only be matched by its worktree.
+                mine = lead.get("session_id") == session_id if lead.get("session_id") else lead["scope"] in here
+            else:
+                # After /clear, the new session in this worktree inherits a live lead from the old one.
+                mine = source == "clear" and lead["scope"] in here and lead.get("session_id") != session_id
+            if mine:
                 event = {"ts": now(), "event": "resumed", "scope": lead["scope"]}
                 if session_id:
                     event["session_id"] = session_id

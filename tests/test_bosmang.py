@@ -175,6 +175,29 @@ class SessionHookTest(LedgerCase):
         self.assertEqual(self.lead()["event"], "resumed")
         self.assertNotIn("ORPHANED", self.run_ledger("list"))
 
+    def test_resume_from_another_directory_takes_the_lead_back(self):
+        self.open_lead("--session-id", "LEAD")
+        self.end("LEAD", reason="prompt_input_exit")
+        self.hook("session-start-hook", {"session_id": "LEAD", "cwd": tempfile.gettempdir(), "source": "resume"})
+        self.assertEqual(self.lead()["event"], "resumed")
+
+    def test_another_session_in_the_worktree_does_not_take_an_orphaned_lead(self):
+        # The reclaimed-lead case: a visitor took the orphaned lead, then its exit orphaned it
+        # again while the lead's own session was running elsewhere.
+        self.open_lead("--session-id", "LEAD")
+        self.end("LEAD", reason="prompt_input_exit")
+        self.hook("session-start-hook", {"session_id": "VISITOR", "cwd": self.worktree.name, "source": "startup"})
+        self.assertEqual((self.lead()["event"], self.lead()["session_id"]), ("ended", "LEAD"))
+        self.hook("session-start-hook", {"session_id": "LEAD", "cwd": tempfile.gettempdir(), "source": "resume"})
+        self.end("VISITOR")
+        self.assertEqual(self.lead()["event"], "resumed")
+
+    def test_an_orphaned_lead_without_a_session_id_goes_to_its_worktree(self):
+        self.open_lead()
+        self.end("ANYONE")
+        self.hook("session-start-hook", {"session_id": "NEXT", "cwd": self.worktree.name, "source": "startup"})
+        self.assertEqual(self.lead()["event"], "resumed")
+
     def test_the_session_after_clear_inherits_the_lead(self):
         self.open_lead("--session-id", "OLD")
         self.end("OLD", reason="clear")

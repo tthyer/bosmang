@@ -28,7 +28,7 @@ claude plugin install bosmang@bosmang --scope user
 
 A `SessionStart` hook injects the standing orders into every session, in every repo, and again after `/clear` and compaction.
 
-Two more hooks keep the ledger honest without deciding anything. When a session ends in a lead's worktree, the lead is marked **orphaned**. When a session starts there again, for example on `--resume`, it takes the lead back. `/clear` and headless `claude -p` runs are ignored. Ending a session never closes a scope; only `/bosmang:close` does.
+Two more hooks keep the ledger honest without deciding anything. When a lead's own session ends, the lead is marked **orphaned**. When that session comes back with `--resume`, from any directory, it takes the lead back. Another session starting in the worktree takes nothing; a new session takes a scope over with `/bosmang:lead`. `/clear` and headless `claude -p` runs are ignored. Ending a session never closes a scope; only `/bosmang:close` does.
 
 ## Configure
 

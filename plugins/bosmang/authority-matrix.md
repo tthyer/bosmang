@@ -10,4 +10,4 @@
 | Commit to a cost | Ask | Ask | No |
 | Post to people (chat, comments on others' work) | Ask | Ask | No |
 | Settle ownership, boundaries, order or a dispute between scopes | No; raise it with the coordinator | Yes, unless the outcome needs an "Ask" action | No |
-| Report to the coordinator | Yes, unprompted | Not applicable | Through whoever spawned it |
+| Report to the coordinator | Yes, unprompted | Not applicable | Through whoever spawned it; directly if the project has lost its lead |
