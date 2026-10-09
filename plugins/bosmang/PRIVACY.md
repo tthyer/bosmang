@@ -9,13 +9,17 @@ bosmang collects nothing and sends nothing anywhere. It has no server, no teleme
 
 ## What it writes
 
-The ledger, in `ledger_dir` (default `~/.local/state/bosmang`), as three append-only JSONL files:
+Two launcher scripts, `ledger` and `charter`, in `~/.local/share/bosmang/bin` (or `$BOSMANG_BIN_DIR`). Each session start points them at the installed copy of the plugin, so the commands in the standing orders keep working after an update.
+
+The ledger, in `ledger_dir` (default `~/.local/state/bosmang`), as append-only JSONL files:
 
 - `leads.jsonl`: each lead's scope, session name, session ID, and branch and worktree path if given, with timestamps, plus a line each time its session ends, resumes or closes.
 - `handoffs.jsonl`: each handoff's text, who it is from and for, its due date and any note, as written by a session or by you.
 - `coordinator.jsonl`: the coordinator's session name, session ID and working directory.
+- `questions.jsonl`: each question a session recorded for you, its scope, and your answer in brief.
+- `notices.jsonl`: each standing notice's text and who added it. Open notices are injected into every session at start.
 
-The ledger holds no conversation content beyond the handoff text a session chooses to write. `/bosmang:init` writes the config files you install with `charter.py --install`, and backs up anything it replaces beside them.
+The ledger holds no conversation content beyond the handoff, question and notice text a session chooses to write. `/bosmang:init` writes the config files you install with `charter.py --install`, and backs up anything it replaces beside them.
 
 ## What it runs
 
@@ -23,4 +27,4 @@ The hooks run its Python scripts locally. `/bosmang:init` runs `survey.py`, whic
 
 ## Removing it
 
-Uninstall the plugin, then delete `~/.config/bosmang` and your `ledger_dir`.
+Uninstall the plugin, then delete `~/.config/bosmang`, `~/.local/share/bosmang` and your `ledger_dir`.

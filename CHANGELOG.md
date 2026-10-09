@@ -2,6 +2,16 @@
 
 Each version is tagged `vX.Y.Z`. Claude Code installs a new copy of the plugin only when `version` in `plugin.json` changes, so every release bumps it.
 
+## 0.6.0 (2026-10-08)
+
+From the coordinator's and a lead's feedback after two days of real use.
+
+- **Your word wins.** The orders say your direct instruction in a session overrides any standing rule or notice; the session follows it and reports the departure as `[STATE]`.
+- **Questions waiting on you.** `ledger.py question add` records a question only you can answer, so a lead asks it once. `/bosmang:board` lists open questions first, by lead, until `question answer` closes them.
+- **Standing notices.** `ledger.py notice add` records a rule for the whole crew. Every session gets open notices at start, as a third injected part, so sessions started later no longer miss a broadcast. The coordinator adds a notice and messages the live sessions.
+- **Launchers at a fixed path.** The orders now name `~/.local/share/bosmang/bin/ledger` and `…/charter`, which each session start points at the installed plugin. Sessions started before an auto-update used to keep calling the old version's scripts.
+- **Close when merged.** `/bosmang:board` checks each lead's branch, and tells a lead whose PR merged to run `/bosmang:close`.
+
 ## 0.5.6 (2026-10-07)
 
 Fixes from a code review.

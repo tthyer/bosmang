@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Append-only ledger of project leads and handoffs, shared by every session in the crew.
+"""Append-only ledger of leads, handoffs, questions and notices, shared by every session in the crew.
 
 Each change is one JSON line appended under an exclusive lock, so sessions writing at the same moment never overwrite each other, and the files double as history. Current state is the fold of all events: the last event for a key wins.
 
@@ -23,15 +23,16 @@ DEFAULT_CONFIG = Path.home() / ".config" / "bosmang" / "config.json"
 DEFAULT_DIR = Path.home() / ".local" / "state" / "bosmang"
 
 
+def config():
+    path = Path(os.environ.get("BOSMANG_CONFIG", DEFAULT_CONFIG)).expanduser()
+    return json.loads(path.read_text()) if path.exists() else {}
+
+
 def ledger_dir():
     if "BOSMANG_LEDGER_DIR" in os.environ:
         return Path(os.environ["BOSMANG_LEDGER_DIR"]).expanduser()
-    config = Path(os.environ.get("BOSMANG_CONFIG", DEFAULT_CONFIG)).expanduser()
-    if config.exists():
-        configured = json.loads(config.read_text()).get("ledger_dir")
-        if configured:
-            return Path(configured).expanduser()
-    return DEFAULT_DIR
+    configured = config().get("ledger_dir")
+    return Path(configured).expanduser() if configured else DEFAULT_DIR
 
 
 def now():
@@ -179,15 +180,29 @@ def lead_close(args):
     return append("leads.jsonl", {"ts": now(), "event": "close", "scope": args.scope})
 
 
+def new_id(name):
+    """A short random ID no item in this file has used. Callers hold the write lock."""
+    taken = set(fold(name, "id"))
+    item_id = secrets.token_hex(3)
+    while item_id in taken:
+        item_id = secrets.token_hex(3)
+    return item_id
+
+
+def close_item(name, kind, item_id, note):
+    if item_id not in {i["id"] for i in open_items(name, "id")}:
+        sys.exit(f"no open {kind} with id {item_id!r}")
+    event = {"ts": now(), "event": "close", "id": item_id}
+    if note:
+        event["note"] = note
+    return append(name, event)
+
+
 def handoff_add(args):
-    taken = set(fold("handoffs.jsonl", "id"))
-    handoff_id = secrets.token_hex(3)
-    while handoff_id in taken:
-        handoff_id = secrets.token_hex(3)
     event = {
         "ts": now(),
         "event": "open",
-        "id": handoff_id,
+        "id": new_id("handoffs.jsonl"),
         "item": args.item,
         "from": args.from_,
     }
@@ -206,20 +221,47 @@ def handoff_update(args):
 
 
 def handoff_close(args):
-    if args.id not in {h["id"] for h in open_items("handoffs.jsonl", "id")}:
-        sys.exit(f"no open handoff with id {args.id!r}")
-    event = {"ts": now(), "event": "close", "id": args.id}
-    if args.note:
-        event["note"] = args.note
-    return append("handoffs.jsonl", event)
+    return close_item("handoffs.jsonl", "handoff", args.id, args.note)
+
+
+def question_add(args):
+    """A question only the owner can answer, recorded once so it is asked once and stays in view."""
+    event = {"ts": now(), "event": "open", "id": new_id("questions.jsonl"), "scope": args.scope, "text": args.text}
+    return append("questions.jsonl", event)
+
+
+def question_answer(args):
+    return close_item("questions.jsonl", "question", args.id, args.answer)
+
+
+def notice_add(args):
+    """A standing notice: injected into every session at start until it is withdrawn."""
+    event = {"ts": now(), "event": "open", "id": new_id("notices.jsonl"), "text": args.text, "from": args.from_}
+    return append("notices.jsonl", event)
+
+
+def notice_close(args):
+    return close_item("notices.jsonl", "notice", args.id, args.note)
+
+
+def notices_text():
+    """The open notices as injected at session start, or "" when there are none."""
+    notices = open_items("notices.jsonl", "id")
+    if not notices:
+        return ""
+    lines = ["## Standing notices", "", "In force for every session until withdrawn. They override nothing $owner tells you directly."]
+    lines += [f"- {n['text']} ({n['id']}, from {n['from']}, {n['ts'][:10]})" for n in notices]
+    return "\n".join(lines)
 
 
 def show(args):
     leads = open_items("leads.jsonl", "scope")
     handoffs = sorted(open_items("handoffs.jsonl", "id"), key=lambda h: h.get("due", "9999"))
+    questions = open_items("questions.jsonl", "id")
+    notices = open_items("notices.jsonl", "id")
     coord = coordinator()
     if args.json:
-        return {"coordinator": coord, "leads": leads, "handoffs": handoffs}
+        return {"coordinator": coord, "leads": leads, "handoffs": handoffs, "questions": questions, "notices": notices}
     lines = [f"Coordinator: {coord['name']}  session {coord['session_id'][:8]}  in {coord['cwd']}" if coord else "Coordinator: none recorded"]
     lines.append("Leads:")
     for l in leads:
@@ -234,6 +276,8 @@ def show(args):
         + (f", for {h['owner']})" if "owner" in h else ")")
         for h in handoffs
     ]
+    lines += [f"Waiting on {config().get('owner', 'the human')}:"] + [f"  {q['id']}  {q['scope']}  {q['text']}" for q in questions]
+    lines += ["Notices:"] + [f"  {n['id']}  {n['text']}  (from {n['from']})" for n in notices]
     print("\n".join(lines))
     return None
 
@@ -279,6 +323,26 @@ def parser():
     hc.add_argument("id")
     hc.add_argument("--note")
     hc.set_defaults(fn=handoff_close)
+
+    question = sub.add_parser("question", help="questions only the owner can answer").add_subparsers(dest="action", required=True)
+    qa = question.add_parser("add")
+    qa.add_argument("--scope", required=True)
+    qa.add_argument("--text", required=True)
+    qa.set_defaults(fn=question_add)
+    qn = question.add_parser("answer")
+    qn.add_argument("id")
+    qn.add_argument("--answer", required=True, help="the owner's answer, in brief")
+    qn.set_defaults(fn=question_answer)
+
+    notice = sub.add_parser("notice", help="standing notices every session gets at start").add_subparsers(dest="action", required=True)
+    na = notice.add_parser("add")
+    na.add_argument("--text", required=True)
+    na.add_argument("--from", dest="from_", required=True)
+    na.set_defaults(fn=notice_add)
+    nc = notice.add_parser("close")
+    nc.add_argument("id")
+    nc.add_argument("--note")
+    nc.set_defaults(fn=notice_close)
 
     start = sub.add_parser("session-start-hook", help="SessionStart hook entry; reads hook JSON on stdin")
     start.set_defaults(fn=session_start_hook)

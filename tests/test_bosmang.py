@@ -11,6 +11,9 @@ from unittest import mock
 from pathlib import Path
 
 SCRIPTS = Path(__file__).resolve().parent.parent / "plugins" / "bosmang" / "scripts"
+# charter.py writes launchers on every run; keep the tests' out of the user's own.
+BIN = tempfile.TemporaryDirectory()
+os.environ["BOSMANG_BIN_DIR"] = BIN.name
 
 
 def load(name):
@@ -76,11 +79,28 @@ class LedgerTest(LedgerCase):
     def test_changes_wait_for_the_write_lock(self):
         added = json.loads(self.run_ledger("handoff", "add", "--item", "x", "--from", "a"))
         with ledger.exclusive():
-            close = subprocess.Popen([sys.executable, str(SCRIPTS / "ledger.py"), "handoff", "close", added["id"]])
+            close = subprocess.Popen([sys.executable, str(SCRIPTS / "ledger.py"), "handoff", "close", added["id"]],
+                                     stdout=subprocess.DEVNULL)
             with self.assertRaises(subprocess.TimeoutExpired):
                 close.wait(timeout=0.5)
         self.assertEqual(close.wait(timeout=5), 0)
         self.assertEqual(self.state()["handoffs"], [])
+
+    def test_questions_wait_on_the_owner_until_answered(self):
+        q = json.loads(self.run_ledger("question", "add", "--scope", "EPIC-1", "--text", "Push the branch?"))
+        self.assertIn(f"{q['id']}  EPIC-1  Push the branch?", self.run_ledger("list"))
+        self.run_ledger("question", "answer", q["id"], "--answer", "yes")
+        self.assertEqual(self.state()["questions"], [])
+        with self.assertRaises(SystemExit):
+            self.run_ledger("question", "answer", q["id"], "--answer", "again")
+
+    def test_notices_are_injected_at_session_start_until_closed(self):
+        n = json.loads(self.run_ledger("notice", "add", "--text", "Never shallow-fetch.", "--from", "nagata"))
+        parts = charter.render_parts({"owner": "Ada"})
+        self.assertIn("- Never shallow-fetch. (", parts["notices"])
+        self.assertIn("nothing Ada tells you directly", parts["notices"])
+        self.run_ledger("notice", "close", n["id"])
+        self.assertEqual(charter.render_parts({})["notices"], "")
 
     def test_handoff_update_keeps_its_id(self):
         added = json.loads(self.run_ledger("handoff", "add", "--item", "draft", "--from", "a"))
@@ -241,6 +261,13 @@ class SessionHookTest(LedgerCase):
 
 
 class CharterTest(unittest.TestCase):
+    def test_launchers_run_this_copy_of_the_scripts(self):
+        charter.write_launchers()
+        run = subprocess.run([str(Path(BIN.name) / "ledger"), "--help"], capture_output=True, text=True)
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertIn("handoff", run.stdout)
+        self.assertIn(str(SCRIPTS / "charter.py"), (Path(BIN.name) / "charter").read_text())
+
     def test_defaults_render_without_config(self):
         text = charter.render({})
         self.assertIn("working for the human", text)
@@ -258,7 +285,8 @@ class CharterTest(unittest.TestCase):
             os.unlink(extra.name)
         self.assertIn("working for Ada", text)
         self.assertIn("`nagata`", text)
-        self.assertIn(f"{SCRIPTS / 'charter.py'} --install <draft>", text)
+        self.assertIn(f"`{BIN.name}/charter --install <draft>`", text)
+        self.assertIn(f"`{BIN.name}/ledger list`", text)
         self.assertTrue(text.rstrip().endswith("Use the tracker."))
 
     def test_problems_flags_bad_keys_and_missing_files(self):

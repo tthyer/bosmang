@@ -9,7 +9,7 @@ When you run many Claude Code sessions at once, the hard part is not the messagi
 - **Teammates** are authorised for the step they were spawned to do.
 - **An authority matrix** says, row by row, which role may do what without asking you.
 - **Typed messages** (`[DONE]` `[STATE]` `[COLLISION]` `[CORRECTION]` `[REQUEST]` `[NEEDS-HUMAN]`) let the coordinator decide mechanically what reaches you, and keep the coordinator in charge of meta-coordination: facts go straight to the session they affect, while needs and disputes between scopes go to the coordinator, which routes and settles them, so you never carry messages between sessions. `[NEEDS-HUMAN]` must cite the matrix row that makes it your call.
-- **An append-only ledger** of leads and handoffs outlives any session's context.
+- **An append-only ledger** of leads, handoffs, questions waiting on you and standing notices outlives any session's context.
 
 *Bosmang* is Belter Creole for "boss", from *The Expanse*. In this crew, the bosmang is you.
 
@@ -26,7 +26,7 @@ claude plugin marketplace add tthyer/bosmang
 claude plugin install bosmang@bosmang --scope user
 ```
 
-A `SessionStart` hook injects the standing orders into every session, in every repo, and again after `/clear` and compaction.
+A `SessionStart` hook injects the standing orders, and any open standing notices, into every session, in every repo, and again after `/clear` and compaction.
 
 Two more hooks keep the ledger honest without deciding anything. When a lead's own session ends, the lead is marked **orphaned**. When that session comes back with `--resume`, from any directory, it takes the lead back. Another session starting in the worktree takes nothing; a new session takes a scope over with `/bosmang:lead`. `/clear` and headless `claude -p` runs are ignored. Ending a session never closes a scope; only `/bosmang:close` does.
 
@@ -67,11 +67,15 @@ python3 plugins/bosmang/scripts/charter.py --print
 - **Board:** `/bosmang:board` shows what's in flight: the ledger, the live sessions and, if your procedures say how, your tracker and your own dashboard. `update` refreshes it.
 - **Lead:** in any session, `/bosmang:lead EPIC-123`. This registers the session in the ledger and tells the coordinator.
 - **Close:** `/bosmang:close` checks the work really is closed, sums it up (shipped, verified, unverified), records what's left as handoffs, closes the lead, reports `[DONE]`, then runs your own closing steps from the local rules.
-- **Ledger:** `python3 plugins/bosmang/scripts/ledger.py list`. `handoff update <id>` changes a handoff's item, owner or due date without changing its ID.
+- **Ledger:** `~/.local/share/bosmang/bin/ledger list`. That launcher always runs the installed version, so sessions started before an update still reach the new scripts.
+  - `handoff update <id>` changes a handoff's item, owner or due date without changing its ID.
+  - `question add --scope X --text …` records a question only you can answer, so it is asked once and stays on the board until `question answer <id>`.
+  - `notice add --text … --from …` records a rule for the whole crew. Every session gets it at start until `notice close <id>`.
+- **Precedence:** your direct instruction in a session overrides any standing rule or notice. The session follows it and reports the departure.
 
 ## The ledger
 
-The ledger is three append-only JSONL files in `ledger_dir`: `leads.jsonl`, `handoffs.jsonl` and `coordinator.jsonl`. Each change is one line, written under a file lock, and the current state is the last line for each key. Nothing is ever rewritten, so the files are also the history.
+The ledger is a set of append-only JSONL files in `ledger_dir`: `leads.jsonl`, `handoffs.jsonl`, `questions.jsonl`, `notices.jsonl` and `coordinator.jsonl`. Each change is one line, written under a file lock, and the current state is the last line for each key. Nothing is ever rewritten, so the files are also the history.
 
 The default, `~/.local/state/bosmang`, has no backup. For history and backup, point `ledger_dir` at a directory in a git repo; the files diff cleanly. bosmang never commits them itself. Add the commit and push to your **Closing steps** so `/bosmang:close` runs them, and `/bosmang:init` offers to do this.
 

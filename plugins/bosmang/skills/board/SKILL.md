@@ -1,6 +1,6 @@
 ---
 name: board
-description: Show what's in flight across the crew, and refresh the user's own dashboard if they keep one. Read mode joins the ledger, the live sessions and the tracker; refresh mode also runs the user's Board procedure, reconciles merged work against the tracker, and checks the work log. Use when the user says "board", "update", "update the board", "threads", "what's in flight", "what's waiting on me", or "what is everyone doing". The coordinator runs it most; any session may read.
+description: Show what's in flight across the crew, and refresh the user's own dashboard if they keep one. Read mode joins the ledger, the live sessions and the tracker; refresh mode also runs the user's Board procedure, reconciles merged work against the tracker, and checks the work log. Use when the user says "board", "update", "update the board", "threads", "what's in flight", "what's waiting on me", "what are you waiting on me for", or "what is everyone doing". The coordinator runs it most; any session may read.
 ---
 
 # board
@@ -15,10 +15,11 @@ Run every script below with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/<script>"`. 
    - each lead: scope, session, and whether its session is running, idle or gone;
    - running sessions that hold no scope, by name;
    - a lead the ledger calls live whose session isn't running is a finding: say so.
-2. **Handoffs**, soonest due first. Name any that are overdue.
-3. **The tracker's view**, if the procedures say how to list in-flight items. Show it in the order the tracker holds; never reorder it, since the order is the user's.
-4. **Live PR state** for items in flight, in **one** batched call rather than one per PR. Report only what contradicts the board, such as a PR now conflicting or merged.
-5. **Age.** Anything read from a cache says how old it is.
+2. **Waiting on the user:** the ledger's open questions, grouped by lead, oldest first. These lead the board, since they are what only the user can unblock.
+3. **Handoffs**, soonest due first. Name any that are overdue.
+4. **The tracker's view**, if the procedures say how to list in-flight items. Show it in the order the tracker holds; never reorder it, since the order is the user's.
+5. **Live PR state** for items in flight, including each lead's branch, in **one** batched call rather than one per PR. Report only what contradicts the board, such as a PR now conflicting or merged. A lead whose PR has merged is ready to close: say so, and if its session is running, message it to run `/bosmang:close`, so its scope isn't left orphaned when the session ends.
+6. **Age.** Anything read from a cache says how old it is.
 
 Keep it to one short table plus findings. Print an item's background only when asked, and only that item's.
 

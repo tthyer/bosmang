@@ -18,8 +18,11 @@ Config is JSON at $BOSMANG_CONFIG, else ~/.config/bosmang/config.json. Every key
 Claude Code shows a hook's additionalContext only up to 10,000 characters; anything
 longer reaches the session as a 2KB preview and a file path, which a session can miss
 entirely. So the orders are injected in parts, each by its own hook call (--part orders,
---part local), and a part that is still too long is replaced by a pointer to read it in
+--part local, --part notices for the ledger's standing notices), and a part that is still too long is replaced by a pointer to read it in
 full rather than silently previewed.
+
+Every run also points the launchers in ~/.local/share/bosmang/bin ($BOSMANG_BIN_DIR) at this
+copy of the plugin. The orders name those launchers, so an update reaches live sessions.
 
 --print writes the rendered orders as plain text instead of hook JSON (one --part, or all).
 --draft DIR prints the orders a drafted config would give, with the draft's own files.
@@ -32,6 +35,7 @@ rather than a string of approvals. Nothing is installed unless the draft validat
 that is a symlink is written through, and anything replaced is backed up first.
 """
 
+import importlib.util
 import json
 import os
 import shlex
@@ -43,6 +47,36 @@ from string import Template
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = Path.home() / ".config" / "bosmang" / "config.json"
+DEFAULT_BIN = Path.home() / ".local" / "share" / "bosmang" / "bin"
+SCRIPTS = ("ledger", "charter")
+
+
+def load(name):
+    spec = importlib.util.spec_from_file_location(name, PLUGIN_ROOT / "scripts" / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def bin_dir():
+    return Path(os.environ.get("BOSMANG_BIN_DIR", DEFAULT_BIN)).expanduser()
+
+
+def write_launchers():
+    """Point the launchers at this copy of the plugin. The orders name the launchers, not
+    the plugin's versioned directory, so a session started before an update still runs the
+    newest scripts once any newer session has started."""
+    directory = bin_dir()
+    directory.mkdir(parents=True, exist_ok=True)
+    for name in SCRIPTS:
+        text = f"#!/bin/sh\nexec python3 {shlex.quote(str(PLUGIN_ROOT / 'scripts' / f'{name}.py'))} \"$@\"\n"
+        path = directory / name
+        if path.exists() and path.read_text() == text:
+            continue
+        tmp = directory / f".{name}.{os.getpid()}"
+        tmp.write_text(text)
+        tmp.chmod(0o755)
+        os.replace(tmp, path)
 
 
 KEYS = {"owner", "coordinator", "ledger_dir", "authority_matrix", "append", "procedures"}
@@ -193,7 +227,7 @@ def read(path):
 
 
 HOOK_LIMIT = 10_000  # measured on 2.1.292: 9,900 characters shown whole, 10,100 previewed
-PARTS = ("orders", "local")
+PARTS = ("orders", "local", "notices")
 # Injected text is paid for in every session's context, so it carries only what changes
 # how a session decides. Past this, --check suggests moving procedure into procedures.
 INJECTED_BUDGET = 7_000
@@ -205,15 +239,20 @@ def render(config):
 
 def render_parts(config):
     matrix = config.get("authority_matrix") or PLUGIN_ROOT / "authority-matrix.md"
-    ledger = PLUGIN_ROOT / "scripts" / "ledger.py"
+    owner = config.get("owner", "the human")
     text = Template((PLUGIN_ROOT / "charter.md").read_text()).safe_substitute(
-        owner=config.get("owner", "the human"),
+        owner=owner,
         coordinator=config.get("coordinator", "coordinator"),
         matrix=read(matrix),
-        ledger=f"python3 {shlex.quote(str(ledger))}",
-        charter=f"python3 {shlex.quote(str(Path(__file__).resolve()))}",
+        ledger=shlex.quote(str(bin_dir() / "ledger")),
+        charter=shlex.quote(str(bin_dir() / "charter")),
     )
-    return {"orders": text.strip(), "local": "\n\n".join(read(p) for p in config.get("append", []))}
+    notices = Template(load("ledger").notices_text()).safe_substitute(owner=owner)
+    return {
+        "orders": text.strip(),
+        "local": "\n\n".join(read(p) for p in config.get("append", [])),
+        "notices": notices,
+    }
 
 
 def hook_text(part, text):
@@ -250,6 +289,7 @@ def main():
     part = sys.argv[sys.argv.index("--part") + 1] if "--part" in sys.argv else None
     if part is not None and part not in PARTS:
         sys.exit(f"--part must be one of {', '.join(PARTS)}")
+    write_launchers()
     parts = render_parts(load_config())
     if "--print" in sys.argv:
         sys.stdout.write((parts[part] if part else render(load_config())).rstrip() + "\n")
