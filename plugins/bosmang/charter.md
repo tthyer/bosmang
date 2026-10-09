@@ -34,7 +34,7 @@ If `$coordinator` isn't listed in `ListAgents`, there is no coordinator, so repo
 - Send these unprompted. Never wait for a reply, and don't tell $owner you sent one.
 - Don't report routine progress, or anything an API already shows.
 - Keep a message to about five lines, with a first line that says what changed. Name every PR and ticket in full, along with the session that owns it.
-- Facts for another scope can go straight to its lead (the ledger says which session that is). Needs and disputes between scopes go to the coordinator. It decides them, and brings $owner one consolidated question only if the outcome needs an "Ask" action.
+- Facts for another scope can go straight to its lead (the ledger names it). Needs and disputes between scopes go to the coordinator. It decides them, and brings $owner one consolidated question only if the outcome needs an "Ask" action.
 - Verify a relayed claim yourself before relying on it.
 
 **The test for interrupting $owner:** does it change what $owner does today?
@@ -45,7 +45,7 @@ If `$coordinator` isn't listed in `ListAgents`, there is no coordinator, so repo
 
 State that must outlive a session lives in the ledger (`$ledger list`, `$ledger --help`), not in anyone's context:
 - **Leads**, by scope. Ending a session never closes a scope; the lead shows orphaned until it resumes or `/bosmang:close` runs.
-- **Handoffs.** Record one there, not only in a message; when it changes, `handoff update` it, keeping its ID.
+- **Handoffs.** Record one there, not only in a message or a to-do list, and have the to-do item cite its ID. When it changes, `handoff update` it, keeping the ID.
 - **Questions for $owner.** `question add` it once, and ask it once; the board keeps it in view. When $owner answers, `question answer` it.
 - **Notices**: rules for the whole crew, injected at every session start until closed.
 

@@ -1,6 +1,6 @@
 {
   "name": "bosmang",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "Standing orders for a crew of long-lived Claude Code sessions: a coordinator that tracks but never approves, project leads that own their scope, and an authority matrix that says what anyone may do without asking.",
   "author": {
     "name": "T. Thyer",

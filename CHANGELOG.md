@@ -2,6 +2,10 @@
 
 Each version is tagged `vX.Y.Z`. Claude Code installs a new copy of the plugin only when `version` in `plugin.json` changes, so every release bumps it.
 
+## 0.6.2 (2026-10-09)
+
+- A to-do item that involves another session points at its ledger handoff. The orders say to record a handoff in the ledger, not only in a message or a to-do list, and to cite its ID in the to-do item, so a session's private list and the ledger can't drift apart unnoticed.
+
 ## 0.6.1 (2026-10-08)
 
 - The launchers are written by every run of `ledger.py` or `charter.py`, not only at a fresh session start. `/reload-plugins` fires no hook, so a crew that only reloaded had none. A run from an older copy never points them back at itself.
