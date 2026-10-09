@@ -67,7 +67,7 @@ python3 plugins/bosmang/scripts/charter.py --print
 - **Board:** `/bosmang:board` shows what's in flight: the ledger, the live sessions and, if your procedures say how, your tracker and your own dashboard. `update` refreshes it.
 - **Lead:** in any session, `/bosmang:lead EPIC-123`. This registers the session in the ledger and tells the coordinator.
 - **Close:** `/bosmang:close` checks the work really is closed, sums it up (shipped, verified, unverified), records what's left as handoffs, closes the lead, reports `[DONE]`, then runs your own closing steps from the local rules.
-- **Ledger:** `~/.local/share/bosmang/bin/ledger list`. That launcher always runs the installed version, so sessions started before an update still reach the new scripts.
+- **Ledger:** `~/.local/share/bosmang/bin/ledger list`. That launcher always runs the newest installed version, so sessions started before an update still reach the new scripts.
   - `handoff update <id>` changes a handoff's item, owner or due date without changing its ID.
   - `question add --scope X --text …` records a question only you can answer, so it is asked once and stays on the board until `question answer <id>`.
   - `notice add --text … --from …` records a rule for the whole crew. Every session gets it at start until `notice close <id>`.

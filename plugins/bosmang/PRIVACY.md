@@ -9,7 +9,7 @@ bosmang collects nothing and sends nothing anywhere. It has no server, no teleme
 
 ## What it writes
 
-Two launcher scripts, `ledger` and `charter`, in `~/.local/share/bosmang/bin` (or `$BOSMANG_BIN_DIR`). Each session start points them at the installed copy of the plugin, so the commands in the standing orders keep working after an update.
+Two launcher scripts, `ledger` and `charter`, in `~/.local/share/bosmang/bin` (or `$BOSMANG_BIN_DIR`). Every run of either script points them at the newest installed copy of the plugin, so the commands in the standing orders keep working after an update.
 
 The ledger, in `ledger_dir` (default `~/.local/state/bosmang`), as append-only JSONL files:
 

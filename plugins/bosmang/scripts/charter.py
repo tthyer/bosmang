@@ -47,8 +47,6 @@ from string import Template
 
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = Path.home() / ".config" / "bosmang" / "config.json"
-DEFAULT_BIN = Path.home() / ".local" / "share" / "bosmang" / "bin"
-SCRIPTS = ("ledger", "charter")
 
 
 def load(name):
@@ -56,27 +54,6 @@ def load(name):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-def bin_dir():
-    return Path(os.environ.get("BOSMANG_BIN_DIR", DEFAULT_BIN)).expanduser()
-
-
-def write_launchers():
-    """Point the launchers at this copy of the plugin. The orders name the launchers, not
-    the plugin's versioned directory, so a session started before an update still runs the
-    newest scripts once any newer session has started."""
-    directory = bin_dir()
-    directory.mkdir(parents=True, exist_ok=True)
-    for name in SCRIPTS:
-        text = f"#!/bin/sh\nexec python3 {shlex.quote(str(PLUGIN_ROOT / 'scripts' / f'{name}.py'))} \"$@\"\n"
-        path = directory / name
-        if path.exists() and path.read_text() == text:
-            continue
-        tmp = directory / f".{name}.{os.getpid()}"
-        tmp.write_text(text)
-        tmp.chmod(0o755)
-        os.replace(tmp, path)
 
 
 KEYS = {"owner", "coordinator", "ledger_dir", "authority_matrix", "append", "procedures"}
@@ -244,8 +221,8 @@ def render_parts(config):
         owner=owner,
         coordinator=config.get("coordinator", "coordinator"),
         matrix=read(matrix),
-        ledger=shlex.quote(str(bin_dir() / "ledger")),
-        charter=shlex.quote(str(bin_dir() / "charter")),
+        ledger=shlex.quote(str(load("ledger").bin_dir() / "ledger")),
+        charter=shlex.quote(str(load("ledger").bin_dir() / "charter")),
     )
     notices = Template(load("ledger").notices_text()).safe_substitute(owner=owner)
     return {
@@ -267,6 +244,7 @@ def hook_text(part, text):
 
 
 def main():
+    load("ledger").write_launchers()
     if "--install" in sys.argv:
         sys.exit(install(sys.argv[sys.argv.index("--install") + 1]))
     if "--check" in sys.argv:
@@ -289,7 +267,6 @@ def main():
     part = sys.argv[sys.argv.index("--part") + 1] if "--part" in sys.argv else None
     if part is not None and part not in PARTS:
         sys.exit(f"--part must be one of {', '.join(PARTS)}")
-    write_launchers()
     parts = render_parts(load_config())
     if "--print" in sys.argv:
         sys.stdout.write((parts[part] if part else render(load_config())).rstrip() + "\n")

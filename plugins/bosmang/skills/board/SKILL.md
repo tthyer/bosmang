@@ -18,7 +18,7 @@ Run every script below with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/<script>"`. 
 2. **Waiting on the user:** the ledger's open questions, grouped by lead, oldest first. These lead the board, since they are what only the user can unblock.
 3. **Handoffs**, soonest due first. Name any that are overdue.
 4. **The tracker's view**, if the procedures say how to list in-flight items. Show it in the order the tracker holds; never reorder it, since the order is the user's.
-5. **Live PR state** for items in flight, including each lead's branch, in **one** batched call rather than one per PR. Report only what contradicts the board, such as a PR now conflicting or merged. A lead whose PR has merged is ready to close: say so, and if its session is running, message it to run `/bosmang:close`, so its scope isn't left orphaned when the session ends.
+5. **Live PR state** for items in flight, including each lead's branch, in **one** batched call rather than one per PR. Report only what contradicts the board, such as a PR now conflicting or merged. A lead whose PR has merged may be finished, but only the user closes a scope. Put it to them in one question across all such leads ("X's PR merged; is X closed?"), unless the ledger already holds that question. For each scope they say is closed, message its lead to run `/bosmang:close` if its session is running; if it isn't, run `/bosmang:close` for that scope yourself.
 6. **Age.** Anything read from a cache says how old it is.
 
 Keep it to one short table plus findings. Print an item's background only when asked, and only that item's.

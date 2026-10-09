@@ -261,8 +261,35 @@ class SessionHookTest(LedgerCase):
 
 
 class CharterTest(unittest.TestCase):
+    def fake_plugin(self, root, version):
+        (root / ".claude-plugin").mkdir(parents=True)
+        (root / ".claude-plugin" / "plugin.json").write_text(json.dumps({"version": version}))
+        (root / "scripts").mkdir()
+        for name in ("ledger", "charter"):
+            (root / "scripts" / f"{name}.py").write_text("")
+            (Path(BIN.name) / name).write_text(f'#!/bin/sh\nexec python3 {root / "scripts" / f"{name}.py"} "$@"\n')
+
+    def test_launchers_never_move_back_to_an_older_copy(self):
+        with tempfile.TemporaryDirectory() as d:
+            self.fake_plugin(Path(d), "99.0.0")
+            ledger.write_launchers()
+            self.assertEqual(ledger.launcher_target(Path(BIN.name) / "ledger"), Path(d))
+        with tempfile.TemporaryDirectory() as d:
+            self.fake_plugin(Path(d), "0.0.1")
+            ledger.write_launchers()
+            self.assertEqual(ledger.launcher_target(Path(BIN.name) / "ledger"), SCRIPTS.parent)
+
+    def test_any_ledger_run_writes_the_launchers(self):
+        # /reload-plugins fires no SessionStart hook, so the launchers can't wait for one.
+        for name in ("ledger", "charter"):
+            (Path(BIN.name) / name).unlink(missing_ok=True)
+        with tempfile.TemporaryDirectory() as d:
+            subprocess.run([sys.executable, str(SCRIPTS / "ledger.py"), "list"], capture_output=True,
+                           env=dict(os.environ, BOSMANG_LEDGER_DIR=d))
+        self.assertEqual(ledger.launcher_target(Path(BIN.name) / "charter"), SCRIPTS.parent)
+
     def test_launchers_run_this_copy_of_the_scripts(self):
-        charter.write_launchers()
+        ledger.write_launchers()
         run = subprocess.run([str(Path(BIN.name) / "ledger"), "--help"], capture_output=True, text=True)
         self.assertEqual(run.returncode, 0, run.stderr)
         self.assertIn("handoff", run.stdout)

@@ -15,12 +15,62 @@ import fcntl
 import json
 import os
 import secrets
+import shlex
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 DEFAULT_CONFIG = Path.home() / ".config" / "bosmang" / "config.json"
 DEFAULT_DIR = Path.home() / ".local" / "state" / "bosmang"
+DEFAULT_BIN = Path.home() / ".local" / "share" / "bosmang" / "bin"
+PLUGIN_ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS = ("ledger", "charter")
+
+
+def bin_dir():
+    return Path(os.environ.get("BOSMANG_BIN_DIR", DEFAULT_BIN)).expanduser()
+
+
+def plugin_version(root):
+    try:
+        text = json.loads((root / ".claude-plugin" / "plugin.json").read_text())["version"]
+        return tuple(int(n) for n in text.split("."))
+    except (OSError, ValueError, KeyError):
+        return ()
+
+
+def launcher_target(path):
+    """The plugin root a launcher points at, or None."""
+    try:
+        quoted = path.read_text().split("exec python3 ", 1)[1].split(' "$@"', 1)[0]
+        return Path(shlex.split(quoted)[0]).parent.parent
+    except (OSError, IndexError, ValueError):
+        return None
+
+
+def write_launchers():
+    """Point the launchers at this copy of the plugin, unless they already point at a newer
+    one. The orders name the launchers, not the plugin's versioned directory, so sessions
+    started before an update reach the newest scripts. Every run of either script calls
+    this, since /reload-plugins fires no hook; the version check stops a session still on
+    an old copy from pointing them back. Never fails its caller."""
+    try:
+        directory = bin_dir()
+        directory.mkdir(parents=True, exist_ok=True)
+        for name in SCRIPTS:
+            path = directory / name
+            current = launcher_target(path) if path.exists() else None
+            if current and current.exists() and plugin_version(current) > plugin_version(PLUGIN_ROOT):
+                continue
+            text = f"#!/bin/sh\nexec python3 {shlex.quote(str(PLUGIN_ROOT / 'scripts' / f'{name}.py'))} \"$@\"\n"
+            if path.exists() and path.read_text() == text:
+                continue
+            tmp = directory / f".{name}.{os.getpid()}"
+            tmp.write_text(text)
+            tmp.chmod(0o755)
+            os.replace(tmp, path)
+    except OSError:
+        pass
 
 
 def config():
@@ -356,6 +406,7 @@ def parser():
 
 
 def main(argv=None):
+    write_launchers()
     args = parser().parse_args(argv)
     if args.fn is show:
         result = show(args)

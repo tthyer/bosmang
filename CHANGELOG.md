@@ -2,6 +2,11 @@
 
 Each version is tagged `vX.Y.Z`. Claude Code installs a new copy of the plugin only when `version` in `plugin.json` changes, so every release bumps it.
 
+## 0.6.1 (2026-10-08)
+
+- The launchers are written by every run of `ledger.py` or `charter.py`, not only at a fresh session start. `/reload-plugins` fires no hook, so a crew that only reloaded had none. A run from an older copy never points them back at itself.
+- Close-on-merge asks first. 0.6.0's board told a lead to close as soon as its PR merged, but only you close a scope. Now a lead asks you once, recording the question in the ledger, when its PR merges; the board asks across all merged leads at once; and only a scope you say is closed gets `/bosmang:close`.
+
 ## 0.6.0 (2026-10-08)
 
 From the coordinator's and a lead's feedback after two days of real use.
@@ -10,7 +15,7 @@ From the coordinator's and a lead's feedback after two days of real use.
 - **Questions waiting on you.** `ledger.py question add` records a question only you can answer, so a lead asks it once. `/bosmang:board` lists open questions first, by lead, until `question answer` closes them.
 - **Standing notices.** `ledger.py notice add` records a rule for the whole crew. Every session gets open notices at start, as a third injected part, so sessions started later no longer miss a broadcast. The coordinator adds a notice and messages the live sessions.
 - **Launchers at a fixed path.** The orders now name `~/.local/share/bosmang/bin/ledger` and `…/charter`, which each session start points at the installed plugin. Sessions started before an auto-update used to keep calling the old version's scripts.
-- **Close when merged.** `/bosmang:board` checks each lead's branch, and tells a lead whose PR merged to run `/bosmang:close`.
+- **Close when merged.** `/bosmang:board` checks each lead's branch for a merged PR. (0.6.1 makes this ask you first.)
 
 ## 0.5.6 (2026-10-07)
 

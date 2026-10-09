@@ -17,4 +17,4 @@ The standing orders, loaded at session start, define the project-lead role and g
 
 ## Finish
 
-Only when the human says the scope is closed (a merged PR is not enough), run `/bosmang:close` for the scope. It records the handoffs, closes this lead and reports `[DONE]`.
+Only when the human says the scope is closed (a merged PR is not enough), run `/bosmang:close` for the scope. When your PR merges, ask whether it is, once, and record the question with `ledger.py question add`, so the scope isn't left open when this session ends. It records the handoffs, closes this lead and reports `[DONE]`.
