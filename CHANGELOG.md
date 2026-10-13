@@ -2,6 +2,10 @@
 
 Each version is tagged `vX.Y.Z`. Claude Code installs a new copy of the plugin only when `version` in `plugin.json` changes, so every release bumps it.
 
+## 0.6.3 (2026-10-13)
+
+- `/bosmang:lead` gives a lead's to-do list one convention: kept where your procedures say, outside the worktree; numbered items that are never renumbered; Open, Blocked, Parked and Done; handoff IDs on items that involve another session; ticked only after a live check, never unticking yours; and every open item becomes a handoff at close. It's in the skill, not the orders, so it costs no injection budget.
+
 ## 0.6.2 (2026-10-09)
 
 - A to-do item that involves another session points at its ledger handoff. The orders say to record a handoff in the ledger, not only in a message or a to-do list, and to cite its ID in the to-do item, so a session's private list and the ledger can't drift apart unnoticed.
