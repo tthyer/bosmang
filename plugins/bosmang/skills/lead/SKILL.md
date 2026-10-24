@@ -1,9 +1,11 @@
 ---
 name: lead
-description: Make this session the project lead for one scope (an epic, ticket or workstream). It registers the session in the bosmang ledger and announces it to the coordinator. Use when the human says "you're the lead for X", "make this session the lead for X", "take over X", or "/bosmang:lead X". Closing a scope is /bosmang:close.
+description: Claude Code only. Make this session the project lead for one scope (an epic, ticket or workstream). It registers the session in the bosmang ledger and announces it to the coordinator. Use when the human says "you're the lead for X", "make this session the lead for X", "take over X", or "/bosmang:lead X". Closing a scope is /bosmang:close.
 ---
 
 # lead
+
+This skill needs Claude Code: it runs local scripts and manages Claude Code sessions. If you can't run shell commands here, as in a claude.ai chat, say that bosmang works only in Claude Code, and stop.
 
 The standing orders, loaded at session start, define the project-lead role and give the ledger command. This skill is the start and finish of holding that role.
 

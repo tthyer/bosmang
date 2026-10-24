@@ -1,6 +1,6 @@
 # Privacy
 
-bosmang collects nothing and sends nothing anywhere. It has no server, no telemetry and no network calls of its own. Everything it writes stays on your machine, in files you can read and delete.
+bosmang collects nothing. It has no server and no telemetry, and its only network request is the GitHub query `/bosmang:init` makes through your own `gh` login, described under [What it runs](#what-it-runs). Everything it writes stays on your machine, in files you can read and delete.
 
 ## What it reads
 

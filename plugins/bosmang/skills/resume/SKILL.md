@@ -1,9 +1,11 @@
 ---
 name: resume
-description: Bring the crew back after a restart, a reboot or a night off. Resumes the coordinator session the ledger records, keeping its role and history, then offers to resume every lead whose session is gone without closing its scope. Use when the user says "resume the crew", "bring everyone back", "start the coordinator", "bosmang resume" or "/bosmang:resume". /bosmang:init ends by running it.
+description: Claude Code only. Bring the crew back after a restart, a reboot or a night off. Resumes the coordinator session the ledger records, keeping its role and history, then offers to resume every lead whose session is gone without closing its scope. Use when the user says "resume the crew", "bring everyone back", "start the coordinator", "bosmang resume" or "/bosmang:resume". /bosmang:init ends by running it.
 ---
 
 # resume
+
+This skill needs Claude Code: it runs local scripts and manages Claude Code sessions. If you can't run shell commands here, as in a claude.ai chat, say that bosmang works only in Claude Code, and stop.
 
 Run every script below with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/<script>"`. If that variable is empty in your shell, the ledger command in the standing orders gives you the absolute path to the same `scripts/` directory.
 
