@@ -1,6 +1,7 @@
 ---
 name: board
-description: Claude Code only. Show what's in flight across the crew, and refresh the user's own dashboard if they keep one. Read mode joins the ledger, the live sessions and the tracker; refresh mode also runs the user's Board procedure, reconciles merged work against the tracker, and checks the work log. Use when the user says "board", "update", "update the board", "threads", "what's in flight", "what's waiting on me", "what are you waiting on me for", or "what is everyone doing". The coordinator runs it most; any session may read.
+description: Show what's in flight across the crew, and refresh the user's own dashboard if they keep one. Read mode joins the ledger, the live sessions and the tracker; refresh mode also runs the user's Board procedure, reconciles merged work against the tracker, and checks the work log. Use when the user says "board", "update the board", "what's in flight", "what's waiting on me", "what are you waiting on me for", or "what is everyone doing". The coordinator runs it most; any session may read.
+compatibility: Requires Claude Code, Python 3 and a shell; manages Claude Code sessions.
 ---
 
 # board

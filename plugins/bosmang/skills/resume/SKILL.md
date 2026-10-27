@@ -1,6 +1,7 @@
 ---
 name: resume
-description: Claude Code only. Bring the crew back after a restart, a reboot or a night off. Resumes the coordinator session the ledger records, keeping its role and history, then offers to resume every lead whose session is gone without closing its scope. Use when the user says "resume the crew", "bring everyone back", "start the coordinator", "bosmang resume" or "/bosmang:resume". /bosmang:init ends by running it.
+description: Bring the crew back after a restart, a reboot or a night off. Resumes the coordinator session the ledger records, keeping its role and history, then offers to resume every lead whose session is gone without closing its scope. Use when the user says "resume the crew", "bring everyone back", "start the coordinator", "bosmang resume" or "/bosmang:resume". /bosmang:init ends by running it.
+compatibility: Requires Claude Code, Python 3 and a shell; manages Claude Code sessions.
 ---
 
 # resume

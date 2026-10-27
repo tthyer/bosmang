@@ -1,6 +1,7 @@
 ---
 name: lead
-description: Claude Code only. Make this session the project lead for one scope (an epic, ticket or workstream). It registers the session in the bosmang ledger and announces it to the coordinator. Use when the human says "you're the lead for X", "make this session the lead for X", "take over X", or "/bosmang:lead X". Closing a scope is /bosmang:close.
+description: Make this session the project lead for one scope (an epic, ticket or workstream). It registers the session in the bosmang ledger and announces it to the coordinator. Use when the human says "you're the lead for X", "make this session the lead for X", "take over X", or "/bosmang:lead X". Closing a scope is /bosmang:close.
+compatibility: Requires Claude Code, Python 3 and a shell; manages Claude Code sessions.
 ---
 
 # lead
