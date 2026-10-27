@@ -1,6 +1,7 @@
 ---
 name: close
-description: Claude Code only. Close one scope or thread of work: check it really is closed, sum it up, record what's left in the ledger, close the lead, report [DONE], then run the user's own closing steps. Use when the human says "X is done", "close this out", "wrap up", "sum up", "hand off what's left", or a lead's scope has closed. One thread at a time; not a sweep across sessions.
+description: Close one scope or thread of work: check it really is closed, sum it up, record what's left in the ledger, close the lead, report [DONE], then run the user's own closing steps. Use when the human says "X is done", "close this out", "close this scope", "hand off what's left", or a lead's scope has closed. One thread at a time; not a sweep across sessions.
+compatibility: Requires Claude Code, Python 3 and a shell; manages Claude Code sessions.
 ---
 
 # close

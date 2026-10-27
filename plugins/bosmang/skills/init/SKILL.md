@@ -1,6 +1,7 @@
 ---
 name: init
-description: Claude Code only. Set up bosmang for this user. Asks how they track work and versions, who they are and what to call the coordinator. Drafts the config, short local rules, a procedures file (tracker, version control, closing steps) and a forked authority matrix, which the user installs with one command; lists the permission rules their no-ask steps need; finds older rules and skills that would conflict, then closes down the running sessions and starts the coordinator. Use when the user says "set up bosmang", "bosmang init", "/bosmang:init", "configure bosmang", or changes their tracker, tools or coordinator. Re-runnable, and it starts from the current config.
+description: Set up bosmang for this user. Asks how they track work and versions, who they are and what to call the coordinator. Drafts the config, short local rules, a procedures file (tracker, version control, closing steps) and a forked authority matrix, which the user installs with one command; lists the permission rules their no-ask steps need; finds older rules and skills that would conflict, then closes down the running sessions and starts the coordinator. Use when the user says "set up bosmang", "bosmang init", "/bosmang:init", "configure bosmang", or changes their tracker, tools or coordinator. Re-runnable, and it starts from the current config.
+compatibility: Requires Claude Code, Python 3 and a shell; manages Claude Code sessions.
 ---
 
 # init

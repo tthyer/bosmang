@@ -2,6 +2,13 @@
 
 Each version is tagged `vX.Y.Z`. Claude Code installs a new copy of the plugin only when `version` in `plugin.json` changes, so every release bumps it.
 
+## 0.6.5 (2026-10-27)
+
+The rest of the directory preparation, which missed 0.6.4's merge.
+
+- **Claude Code in `compatibility`.** No setting limits a skill to one product, and a description prefix has no documented effect. So each skill drops 0.6.4's "Claude Code only." prefix and declares the requirement in `compatibility`, the Agent Skills spec's field for it. The line that tells Claude to stop outside Claude Code stays; it is a convention, not a documented mechanism.
+- **Narrower triggers.** `/bosmang:board` no longer triggers on a bare "update" or "threads", and `/bosmang:close` no longer on "wrap up" or "sum up", so ordinary requests in any session don't start them. The coordinator still runs the board when you tell it "update".
+
 ## 0.6.4 (2026-10-24)
 
 Preparing for Anthropic's plugin directory, where a listing also loads in claude.ai chat and Cowork.
