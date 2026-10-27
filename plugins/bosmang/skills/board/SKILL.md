@@ -1,9 +1,11 @@
 ---
 name: board
-description: Show what's in flight across the crew, and refresh the user's own dashboard if they keep one. Read mode joins the ledger, the live sessions and the tracker; refresh mode also runs the user's Board procedure, reconciles merged work against the tracker, and checks the work log. Use when the user says "board", "update", "update the board", "threads", "what's in flight", "what's waiting on me", "what are you waiting on me for", or "what is everyone doing". The coordinator runs it most; any session may read.
+description: Claude Code only. Show what's in flight across the crew, and refresh the user's own dashboard if they keep one. Read mode joins the ledger, the live sessions and the tracker; refresh mode also runs the user's Board procedure, reconciles merged work against the tracker, and checks the work log. Use when the user says "board", "update", "update the board", "threads", "what's in flight", "what's waiting on me", "what are you waiting on me for", or "what is everyone doing". The coordinator runs it most; any session may read.
 ---
 
 # board
+
+This skill needs Claude Code: it runs local scripts and manages Claude Code sessions. If you can't run shell commands here, as in a claude.ai chat, say that bosmang works only in Claude Code, and stop.
 
 Run every script below with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/<script>"`. If that variable is empty in your shell, the ledger command in the standing orders gives you the absolute path to the same `scripts/` directory. Run `charter.py --procedures` first: a **Board** section there, if the user has one, says how their dashboard is read and refreshed, and its commands replace the defaults below.
 

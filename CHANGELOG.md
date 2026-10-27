@@ -2,6 +2,13 @@
 
 Each version is tagged `vX.Y.Z`. Claude Code installs a new copy of the plugin only when `version` in `plugin.json` changes, so every release bumps it.
 
+## 0.6.4 (2026-10-24)
+
+Preparing for Anthropic's plugin directory, where a listing also loads in claude.ai chat and Cowork.
+
+- **Claude Code only.** Chat and Cowork load a plugin's skills but can't run bosmang's scripts or sessions. Each skill's description now starts "Claude Code only.", and its first line tells Claude to say bosmang needs Claude Code and stop if it can't run shell commands, so "sum up this thread" in a chat no longer starts `/bosmang:close`. The plugin README says so too.
+- The plugin README gains its install line, which `claude plugin validate --strict` asks for, and no longer says bosmang sends nothing off your machine: `/bosmang:init` asks GitHub for your login and recent repos through `gh`, as PRIVACY.md already said.
+
 ## 0.6.3 (2026-10-13)
 
 - `/bosmang:lead` gives a lead's to-do list one convention: kept where your procedures say, outside the worktree; numbered items that are never renumbered; Open, Blocked, Parked and Done; handoff IDs on items that involve another session; ticked only after a live check, never unticking yours; and every open item becomes a handoff at close. It's in the skill, not the orders, so it costs no injection budget.

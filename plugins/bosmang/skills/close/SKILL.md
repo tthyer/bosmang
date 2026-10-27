@@ -1,9 +1,11 @@
 ---
 name: close
-description: Close one scope or thread of work: check it really is closed, sum it up, record what's left in the ledger, close the lead, report [DONE], then run the user's own closing steps. Use when the human says "X is done", "close this out", "wrap up", "sum up", "hand off what's left", or a lead's scope has closed. One thread at a time; not a sweep across sessions.
+description: Claude Code only. Close one scope or thread of work: check it really is closed, sum it up, record what's left in the ledger, close the lead, report [DONE], then run the user's own closing steps. Use when the human says "X is done", "close this out", "wrap up", "sum up", "hand off what's left", or a lead's scope has closed. One thread at a time; not a sweep across sessions.
 ---
 
 # close
+
+This skill needs Claude Code: it runs local scripts and manages Claude Code sessions. If you can't run shell commands here, as in a claude.ai chat, say that bosmang works only in Claude Code, and stop.
 
 The standing orders, loaded at session start, give the ledger command, the message tags and the authority matrix. The user's procedures aren't loaded until you ask for them. Before step 1, run `python3 <scripts>/charter.py --procedures`, where `<scripts>` is the directory holding the `ledger.py` named in the standing orders. Its **Tracker**, **Version control** and **Closing steps** sections, where present, say how to carry out the steps below.
 

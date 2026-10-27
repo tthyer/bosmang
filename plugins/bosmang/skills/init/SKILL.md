@@ -1,9 +1,11 @@
 ---
 name: init
-description: Set up bosmang for this user. Asks how they track work and versions, who they are and what to call the coordinator. Drafts the config, short local rules, a procedures file (tracker, version control, closing steps) and a forked authority matrix, which the user installs with one command; lists the permission rules their no-ask steps need; finds older rules and skills that would conflict, then closes down the running sessions and starts the coordinator. Use when the user says "set up bosmang", "bosmang init", "/bosmang:init", "configure bosmang", or changes their tracker, tools or coordinator. Re-runnable, and it starts from the current config.
+description: Claude Code only. Set up bosmang for this user. Asks how they track work and versions, who they are and what to call the coordinator. Drafts the config, short local rules, a procedures file (tracker, version control, closing steps) and a forked authority matrix, which the user installs with one command; lists the permission rules their no-ask steps need; finds older rules and skills that would conflict, then closes down the running sessions and starts the coordinator. Use when the user says "set up bosmang", "bosmang init", "/bosmang:init", "configure bosmang", or changes their tracker, tools or coordinator. Re-runnable, and it starts from the current config.
 ---
 
 # init
+
+This skill needs Claude Code: it runs local scripts and manages Claude Code sessions. If you can't run shell commands here, as in a claude.ai chat, say that bosmang works only in Claude Code, and stop.
 
 Run every script below with `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/<script>"`. If that variable is empty in your shell, the ledger command in the standing orders gives you the absolute path to the same `scripts/` directory.
 
