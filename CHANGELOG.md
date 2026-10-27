@@ -2,11 +2,12 @@
 
 Each version is tagged `vX.Y.Z`. Claude Code installs a new copy of the plugin only when `version` in `plugin.json` changes, so every release bumps it.
 
-## 0.6.4 (2026-10-24)
+## 0.6.4 (2026-10-27)
 
 Preparing for Anthropic's plugin directory, where a listing also loads in claude.ai chat and Cowork.
 
-- **Claude Code only.** Chat and Cowork load a plugin's skills but can't run bosmang's scripts or sessions. Each skill's description now starts "Claude Code only.", and its first line tells Claude to say bosmang needs Claude Code and stop if it can't run shell commands, so "sum up this thread" in a chat no longer starts `/bosmang:close`. The plugin README says so too.
+- **Claude Code only.** Chat and Cowork load a plugin's skills but can't run bosmang's scripts or sessions, and no setting limits a skill to one product. So each skill declares the requirement in `compatibility`, the Agent Skills spec's field for it, and its first line tells Claude to say bosmang needs Claude Code and stop if it can't run shell commands. That line is a convention, not a documented mechanism. The plugin README says so too.
+- **Narrower triggers.** `/bosmang:board` no longer triggers on a bare "update" or "threads", and `/bosmang:close` no longer on "wrap up" or "sum up", so ordinary requests in any session don't start them. The coordinator still runs the board when you tell it "update".
 - The plugin README gains its install line, which `claude plugin validate --strict` asks for, and no longer says bosmang sends nothing off your machine: `/bosmang:init` asks GitHub for your login and recent repos through `gh`, as PRIVACY.md already said.
 
 ## 0.6.3 (2026-10-13)
