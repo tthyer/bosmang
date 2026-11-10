@@ -307,7 +307,9 @@ class CharterTest(unittest.TestCase):
         with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False) as extra:
             extra.write("## Local rules\nUse the tracker.")
         try:
-            text = charter.render({"owner": "Ada", "coordinator": "nagata", "append": [extra.name]})
+            # An empty ledger, so the real crew's open notices can't land after the local rules.
+            with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ, {"BOSMANG_LEDGER_DIR": d}):
+                text = charter.render({"owner": "Ada", "coordinator": "nagata", "append": [extra.name]})
         finally:
             os.unlink(extra.name)
         self.assertIn("working for Ada", text)
