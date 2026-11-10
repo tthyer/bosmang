@@ -313,7 +313,7 @@ class CharterTest(unittest.TestCase):
         self.assertIn("working for Ada", text)
         self.assertIn("`nagata`", text)
         self.assertIn(f"`{BIN.name}/charter --install <draft>`", text)
-        self.assertIn(f"`{BIN.name}/ledger list`", text)
+        self.assertIn(f"`{BIN.name}/ledger --help`", text)
         self.assertTrue(text.rstrip().endswith("Use the tracker."))
 
     def test_problems_flags_bad_keys_and_missing_files(self):
