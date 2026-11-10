@@ -2,6 +2,10 @@
 
 Each version is tagged `vX.Y.Z`. Claude Code installs a new copy of the plugin only when `version` in `plugin.json` changes, so every release bumps it.
 
+## 0.6.6 (2026-11-09)
+
+- Terser standing orders: the same rules in 153 fewer characters (6,082 to 5,929), since every session pays for them at start. The ledger is pointed to by `ledger --help` alone, which lists `list`.
+
 ## 0.6.5 (2026-10-27)
 
 The rest of the directory preparation, which missed 0.6.4's merge.
